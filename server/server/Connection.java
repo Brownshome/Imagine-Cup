@@ -80,9 +80,7 @@ public class Connection {
 		sendQueue.forEach(this::send);
 	}
 	
-	/** This is COBS encoding, the data is read into segments with 0x00 as delimiters, these 0x00s are removed and the length of each sengment + 1
-	 * is prepended onto the front. 0xFF has a special meaning, it represents a block of length of 254 */
-	void send(byte[] data) {
+	public void send(byte[] data) {
 		if(thread != Thread.currentThread()) {
 			addToSendQueue(data);
 			return;
