@@ -11,7 +11,8 @@ import server.Server;
 public enum DataType {
 	STRING(DataType::toString, DataType::writeString), 
 	INTEGER(DataType::toInt, DataType::writeInt), 
-	BINARY(DataType::toBinary, DataType::writeBinary), 
+	BINARY(DataType::toBinary, DataType::writeBinary),
+	FLOAT(DataType::toFloat, DataType::writeFloat),
 	BYTE(DataType::toByte, (b, o) -> o.write((byte) b));
 
 	private Function<ByteArrayInputStream, Object> read;
@@ -36,7 +37,15 @@ public enum DataType {
 			out.write(0); //null termination
 		} catch (IOException e) {}
 	}
-
+	
+	private static void writeFloat(Object value, ByteArrayOutputStream out) {
+		writeInt(Float.floatToIntBits((float) value), out);
+	}
+	
+	private static Object toFloat(ByteArrayInputStream data) {
+		return Float.intBitsToFloat(toInt(data));
+	}
+	
 	private static void writeInt(Object value, ByteArrayOutputStream out) {
 		int i = (int) value;
 		out.write(i >> 24 & 0xff);

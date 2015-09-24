@@ -4,12 +4,39 @@ import static packets.DataType.BINARY;
 import static packets.DataType.BYTE;
 import static packets.DataType.INTEGER;
 import static packets.DataType.STRING;
+import static packets.DataType.FLOAT;
 
 import java.io.ByteArrayInputStream;
 import java.util.Arrays;
 import java.util.function.Consumer;
 
 public enum InboundPackets {
+	HISTORY_GET(null, INTEGER),
+	
+	FEATURES_GET(null),
+	
+	TEXT_SEND(null, STRING, STRING),
+	
+	FRIEND_REQUEST(null, STRING, STRING),
+	FRIEND_ACCEPT(null, STRING),
+	FRIEND_REJECT(null, STRING),
+	
+	ARENA_CREATE(null),
+	ARENA_INVITE(null, STRING, STRING),
+	ARENA_LEAVE(null, STRING),
+	
+	PREFERENCES_SET(null, BINARY),
+	
+	STATUS_UPDATE(null, STRING),
+	
+	NEWS_FEED_ADD(null, BINARY),
+	
+	AVATAR_SEND(null, BINARY),
+	
+	ANNOTATE_TEXT(null, FLOAT, FLOAT, FLOAT, STRING),
+	
+	UPLOAD_FILE(null, BYTE, BYTE, STRING),
+	
 	TEST_PACKET(o -> System.out.println("Test packet recieved " + Arrays.toString(o)), INTEGER, STRING, BYTE, BINARY);
 	
 	private DataType[] types;

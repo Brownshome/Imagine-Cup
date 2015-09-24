@@ -11,7 +11,7 @@ our resident hacker.
 
 strings are encoded as UTF-8 and are terminated by 0x00.
 integers are 4 byte
-doubles are 8 byte
+floats are 4 byte
 bytes are one byte
 byte[] are always at the end of the packet and consume all remaining data
 
@@ -74,11 +74,11 @@ FILE_TRANSFER
 	string 	name
 	data[]	file
 
-ANNOTATE_IMAGE_TEXT
+ANNOTATE_TEXT
 	string	username
-	double	xPos
-	double 	yPos
-	double 	zPos
+	float	xPos
+	float 	yPos
+	float 	zPos
 	string	text
 
 AVATAR_UPADTE_OTHERS
@@ -119,6 +119,13 @@ FRIEND_REMOVE
 STATUS_UPDATE
 	string 	username
 	string 	status
+
+FEATURES_SEND
+	int		features (a bit mask)
+	
+HISTORY_SEND
+	byte	eventType
+	byte[]	data
 
 Client To Server Packets
 ------------------------
@@ -167,9 +174,9 @@ AVATAR_SEND
 	byte[] data
 
 ANNOTATE_TEXT
-	double	xPos
-	double 	yPos
-	double 	zPos
+	float	xPos
+	float 	yPos
+	float 	zPos
 	string	text
 
 UPLOAD_FILE
