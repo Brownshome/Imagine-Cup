@@ -1,6 +1,4 @@
-package server;
-
-import static packets.OutboundPackets.SERVER_ERROR;
+package testClient;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -8,43 +6,42 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.Arrays;
+import java.util.LinkedList;
+import java.util.Queue;
 
-import packets.InboundPackets;
+import server.Server;
 import framing.COBS;
 import framing.FramingAlgorithm;
 
 public class Connection {
-	public static final Map<String, Connection> CONNECTIONS = new HashMap<>();
-	
+	static Connection connection;
 	static final FramingAlgorithm FRAMER = new COBS();
-	
+
 	public static void createNewConnection(Socket socket) {
-		System.out.println("Accepted connection from " + socket.getInetAddress());
-		new Thread(new Connection(socket)::listenJob).run(); 
-		//TODO thread pool, and actually make this multithreaded, for some reason the socket gets closed if the listenJob is called from another thread.
+		connection = new Connection(socket);
+		new Thread(connection::listenJob).start();
 	}
 
 	public Socket socket;
-	public String username;
-	
+
 	InputStream in;
 	OutputStream out;
-	
+
+	Queue<byte[]> sendQueue = new LinkedList<>();
+
 	Connection(Socket socket) {
 		this.socket = socket;
-		
+
 		try {
 			in = socket.getInputStream(); 
 			out = socket.getOutputStream();
 		} catch(IOException ioex) {
-			Server.error("Failed to create socket", ioex);
+			System.out.println("Could not connect to socket");
+			ioex.printStackTrace();
 		}
-		
-		username = null;
 	}
-	
+
 	void listenJob() {
 		int b;
 		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -57,11 +54,8 @@ public class Connection {
 					return;
 				}
 
-				if(b == 0x00) {					
-					byte[] bytes = buffer.toByteArray();
-					
-					decodePacket(bytes);
-					
+				if(b == 0x00) {
+					decodePacket(buffer.toByteArray());
 					buffer = new ByteArrayOutputStream();
 					continue;
 				}
@@ -74,7 +68,7 @@ public class Connection {
 			}
 		}
 	}
-	
+
 	synchronized void closeConnection() {
 		try {
 			in.close();
@@ -82,14 +76,16 @@ public class Connection {
 			out.close();
 		} catch (IOException e) {}
 	}
-	
+
 	void decodePacket(byte[] byteArray) {
 		ByteArrayInputStream in = new ByteArrayInputStream(FRAMER.decode(byteArray));
 		
 		int id = in.read();
+		
 		if(id >= InboundPackets.values().length) {
-			SERVER_ERROR.send(this, 2, "Invalid packet id: " + id);
 			System.out.println("Packet recieved UNKNOWN(" + id + ")");
+			System.out.println(Arrays.toString(byteArray));
+			System.out.println(new String(byteArray, Server.CHARSET));
 			return;
 		}
 		
@@ -102,7 +98,15 @@ public class Connection {
 			out.write(FRAMER.encode(data));
 			out.write(0x00);
 		} catch(IOException e) { 
-			Server.error("Error sending packet", e);
+			throw new RuntimeException(e);
+		}
+	}
+
+	public synchronized void sendNonEncoded(byte[] data) {
+		try {
+			out.write(data);
+		} catch(IOException e) { 
+			throw new RuntimeException(e);
 		}
 	}
 }

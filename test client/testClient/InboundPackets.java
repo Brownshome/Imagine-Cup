@@ -1,16 +1,15 @@
-package packets;
+package testClient;
 
 import static packets.DataType.BINARY;
 import static packets.DataType.BYTE;
 import static packets.DataType.INTEGER;
 import static packets.DataType.STRING;
 
-import java.io.ByteArrayOutputStream;
+import java.io.ByteArrayInputStream;
 
-import server.Connection;
+import packets.DataType;
 
-//note there can be no more than 255 packet types
-public enum OutboundPackets {
+public enum InboundPackets {
 	SERVER_ERROR(INTEGER, STRING),
 	
 	AVATAR_SEND(STRING, BINARY),
@@ -36,18 +35,18 @@ public enum OutboundPackets {
 	;
 	
 	private DataType[] types;
-	OutboundPackets(DataType... types) {
+	
+	InboundPackets(DataType... types) {
 		this.types = types;
 	}
 	
-	public void send(Connection connection, Object... objects) {
-		ByteArrayOutputStream array = new ByteArrayOutputStream();
-		array.write(ordinal());
+	public void handle(ByteArrayInputStream array) {
+		Object[] objects = new Object[types.length];
 		
 		for(int i = 0; i < types.length; i++) {
-			types[i].write(objects[i], array);
+			objects[i] = types[i].read(array);
 		}
 		
-		connection.send(array.toByteArray());
+		Client.printPacket(name(), objects);
 	}
 }

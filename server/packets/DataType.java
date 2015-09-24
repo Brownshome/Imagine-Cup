@@ -22,16 +22,19 @@ public enum DataType {
 		this.write = write;
 	}
 
-	Object read(ByteArrayInputStream data) {
+	public Object read(ByteArrayInputStream data) {
 		return read.apply(data);
 	}
 
-	void write(Object value, ByteArrayOutputStream data) {
+	public void write(Object value, ByteArrayOutputStream data) {
 		write.accept(value, data);
 	}
 
 	private static void writeString(Object value, ByteArrayOutputStream out) {
-		try { out.write(((String) value).getBytes(Server.CHARSET)); } catch (IOException e) {}
+		try { 
+			out.write(((String) value).getBytes(Server.CHARSET));
+			out.write(0); //null termination
+		} catch (IOException e) {}
 	}
 
 	private static void writeInt(Object value, ByteArrayOutputStream out) {
