@@ -1,0 +1,191 @@
+
+Packet Specification
+--------------------
+
+Each packet is headed by a single byte detailing the id of the packet. The
+id specifies exactly what the packet contains.
+
+Each packet is delimited by COBS (Consistent Overhead Byte Stuffing). This
+will make the server recover from errors and malitious packet crafting by
+our resident hacker.
+
+strings are encoded as UTF-8 and are terminated by 0x00.
+integers are 4 byte
+doubles are 8 byte
+bytes are one byte
+byte[] are always at the end of the packet and consume all remaining data
+
+The packet header is only one byte, then data begins.
+
+Server To Client Packets
+------------------------
+
+SERVER_ERROR
+	int	error code
+	String 	error detail
+
+	error codes:
+		0: unknown error
+		1: malformed packet
+		2: unknown packet id
+	more may be added later so don't assume that only 0, 1 & 2 are to be
+	used.
+
+AVATAR_SEND
+	string 	username
+	byte[]	data
+
+TEXT_SEND
+	byte	type
+	string 	text
+
+	type codes:
+		0: VoiceTranslation
+		1: ArenaMessage
+		2: NonArenaMessage
+
+FILE_UPLOADED
+	byte 	fileType
+	string	fileName
+	
+	fileTypes:
+		0: PNG
+		1: JPEG
+		2: AVI
+		3: GENERAL_FILE
+	
+
+FILE_UPLOAD_COMPLETE
+	string name
+
+FILE_START_TRANSFER
+	string 	name
+	byte	connectionType
+	byte[]	connectionData (may be absent)
+
+	connectionTypes:
+		0: stream from server (in this connection.
+		   no data in connectionData)
+		1: stream from server (in new TCP connection, 
+		   connectionData contains the port)
+		2: URL stream (connectionData contains the URL)
+
+FILE_TRANSFER
+	string 	name
+	data[]	file
+
+ANNOTATE_IMAGE_TEXT
+	string	username
+	double	xPos
+	double 	yPos
+	double 	zPos
+	string	text
+
+AVATAR_UPADTE_OTHERS
+	string	usernames
+	byte[]	data
+
+ARENA_OTHER_JOINED
+	string 	username
+
+ARENA_OTHER_LEFT
+	string 	username
+	string 	reason
+
+ARENA_CLOSED
+	string 	reason
+
+ARENA_INVITE
+	string 	username
+	string 	messege
+
+NEWS_FEED_SEND
+	int	type
+	byte[]	data
+
+FRIEND_REQUEST
+	string 	username
+	string	text
+
+FRIEND_ACCEPT
+	string	username
+
+FRIEND_REJECT
+	string	username
+
+FRIEND_REMOVE
+	string	username
+
+STATUS_UPDATE
+	string 	username
+	string 	status
+
+Client To Server Packets
+------------------------
+
+HISTORY_GET
+	int	length
+
+FEATURES_GET
+	no data
+
+TEXT_SEND
+	string	text
+	string	username
+
+FRIEND_REQUEST
+	string	username
+	string	text
+
+FRIEND_ACCEPT
+	string	username
+
+FRIEND_REJECT
+	string	username
+
+ARENA_CREATE
+	no data
+
+ARENA_INVITE
+	string	username
+	string	text
+
+ARENA_LEAVE
+	string	reason
+
+PREFERENCES_SET
+	byte[]	data
+
+STATUS_UPDATE
+	string	status
+
+NEWS_FEED_ADD
+	int	type
+	byte[]	data
+
+AVATAR_SEND
+	byte[] data
+
+ANNOTATE_TEXT
+	double	xPos
+	double 	yPos
+	double 	zPos
+	string	text
+
+UPLOAD_FILE
+	byte 	fileType
+	byte	connectionType
+	string	fileName
+	
+	fileTypes:
+		0: PNG
+		1: JPEG
+		2: AVI
+		3: GENERAL_FILE
+
+	connectionTypes:
+		0: stream from server (in this connection.
+		   no data in connectionData)
+		1: stream from server (in new TCP connection, 
+		   connectionData contains the port)
+		2: URL stream (connectionData contains the URL)
