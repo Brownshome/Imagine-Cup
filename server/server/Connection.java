@@ -10,6 +10,8 @@ import java.io.OutputStream;
 import java.net.Socket;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import packets.InboundPackets;
 import framing.COBS;
@@ -19,11 +21,11 @@ public class Connection {
 	public static final Map<String, Connection> CONNECTIONS = new HashMap<>();
 	
 	static final FramingAlgorithm FRAMER = new COBS();
+	static final ExecutorService POOL = Executors.newCachedThreadPool(); //I know this is vunlnerable to DoS but I'll worry about that later
 	
 	public static void createNewConnection(Socket socket) {
 		System.out.println("Accepted connection from " + socket.getInetAddress());
-		new Thread(new Connection(socket)::listenJob).run(); 
-		//TODO thread pool, and actually make this multithreaded, for some reason the socket gets closed if the listenJob is called from another thread.
+		POOL.submit(new Connection(socket)::listenJob);
 	}
 
 	public Socket socket;
@@ -39,7 +41,8 @@ public class Connection {
 			in = socket.getInputStream(); 
 			out = socket.getOutputStream();
 		} catch(IOException ioex) {
-			Server.error("Failed to create socket", ioex);
+			closeConnection();
+			System.out.println("Failed to create IO stream : " + ioex.getMessage());
 		}
 		
 		username = null;
@@ -102,7 +105,7 @@ public class Connection {
 			out.write(FRAMER.encode(data));
 			out.write(0x00);
 		} catch(IOException e) { 
-			Server.error("Error sending packet", e);
+			System.out.println("Error sending packet : " + e.getMessage());
 		}
 	}
 }
