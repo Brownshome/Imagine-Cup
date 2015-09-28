@@ -8,19 +8,25 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 import packets.InboundPackets;
+import packets.PacketException;
 import framing.COBS;
 import framing.FramingAlgorithm;
 
 public class Connection {
+	/** This contains a username - connection map, users are added to this once they successfully log in */
 	public static final Map<String, Connection> CONNECTIONS = new HashMap<>();
 	
+	/** The packet sepperation algorithm that is used */
 	static final FramingAlgorithm FRAMER = new COBS();
+	
+	/** The thread pool that connections are formed with */
 	static final ExecutorService POOL = Executors.newCachedThreadPool(); //I know this is vunlnerable to DoS but I'll worry about that later
 	
 	public static void createNewConnection(Socket socket) {
@@ -33,6 +39,7 @@ public class Connection {
 	
 	InputStream in;
 	OutputStream out;
+	ArrayList<Runnable> closeList = new ArrayList<>();
 	
 	Connection(Socket socket) {
 		this.socket = socket;
@@ -63,7 +70,11 @@ public class Connection {
 				if(b == 0x00) {					
 					byte[] bytes = buffer.toByteArray();
 					
-					decodePacket(bytes);
+					try {
+						decodePacket(bytes);
+					} catch(PacketException pde) {
+						System.out.println(pde.getMessage());
+					}
 					
 					buffer = new ByteArrayOutputStream();
 					continue;
@@ -78,26 +89,31 @@ public class Connection {
 		}
 	}
 	
+	synchronized void addCloseHook(Runnable r) {
+		closeList.add(r);
+	}
+	
 	synchronized void closeConnection() {
 		try {
 			in.close();
 			socket.close();
 			out.close();
 		} catch (IOException e) {}
+		
+		closeList.forEach(Runnable::run);
 	}
 	
-	void decodePacket(byte[] byteArray) {
+	void decodePacket(byte[] byteArray) throws PacketException {
 		ByteArrayInputStream in = new ByteArrayInputStream(FRAMER.decode(byteArray));
 		
 		int id = in.read();
-		if(id >= InboundPackets.values().length) {
+		if(id >= InboundPackets.values().length || id < 0) {
 			SERVER_ERROR.send(this, 2, "Invalid packet id: " + id);
-			System.out.println("Packet recieved UNKNOWN(" + id + ")");
-			return;
+			throw new PacketException(id, "Invalid packet ID");
 		}
 		
 		System.out.println("Packet recieved " + InboundPackets.values()[id].name() + "(" + id + ")");
-		InboundPackets.values()[id].handle(in);
+		InboundPackets.values()[id].handle(this, in);
 	}
 
 	public synchronized void send(byte[] data) {

@@ -1,0 +1,40 @@
+
+Server Capacities
+-----------------
+
+-> Data storage for avatar appearance, chat history, login data and available
+   features. (In the database I assume, have not really looked into it yet)
+
+-> Peer to Peer audio streaming and hub based (Peer to Server to Peer) depending
+   on group size.
+
+-> Audio quality determination and audio compression.
+
+-> Voice to text conversion (This could possibly be put on the client to conserve
+   bandwidth).
+
+-> Text message sending with markup e.g. colour, size, links, emotional
+   highlighting.
+
+-> Image and video file transfer, possibility of storage of files on the 
+   file system.
+
+-> Textual image and video annotation, as well as lazer pointer type
+   annotation.
+
+-> Head orientation, position of avatar sending.
+
+-> Audio filter to focused avatar
+
+-> News feed generation and sending (not sure what goes in the news feed
+   yet though)
+
+-> Login system (Andrew's problem, not mine :P)
+
+-> Friend request system
+
+-> Creation of active arena session
+
+-> Invite system
+
+-> Status updates e.g. In arena, away, available ect...

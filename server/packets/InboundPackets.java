@@ -10,6 +10,8 @@ import java.io.ByteArrayInputStream;
 import java.util.Arrays;
 import java.util.function.Consumer;
 
+import server.Connection;
+
 public enum InboundPackets {
 	HISTORY_GET(null, INTEGER),
 	
@@ -35,9 +37,7 @@ public enum InboundPackets {
 	
 	ANNOTATE_TEXT(null, FLOAT, FLOAT, FLOAT, STRING),
 	
-	UPLOAD_FILE(null, BYTE, BYTE, STRING),
-	
-	TEST_PACKET(o -> System.out.println("Test packet recieved " + Arrays.toString(o)), INTEGER, STRING, BYTE, BINARY);
+	UPLOAD_FILE(null, BYTE, BYTE, STRING);
 	
 	private DataType[] types;
 	private Consumer<Object[]> handler;
@@ -47,11 +47,12 @@ public enum InboundPackets {
 		this.handler = handler;
 	}
 	
-	public void handle(ByteArrayInputStream array) {
-		Object[] objects = new Object[types.length];
+	public void handle(Connection connection, ByteArrayInputStream array) {
+		Object[] objects = new Object[types.length + 1];
 		
+		objects[0] = connection;
 		for(int i = 0; i < types.length; i++) {
-			objects[i] = types[i].read(array);
+			objects[i + 1] = types[i].read(array);
 		}
 		
 		handler.accept(objects);

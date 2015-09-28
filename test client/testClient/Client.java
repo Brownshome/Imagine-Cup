@@ -63,6 +63,9 @@ public class Client {
 							break;
 						case BINARY:
 							objects[i] = DatatypeConverter.parseHexBinary(data[i + 1]);
+							break;
+						case FLOAT:
+							objects[i] = Float.parseFloat(data[i + 1]);
 						}
 					}
 
