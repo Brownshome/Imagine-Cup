@@ -28,6 +28,8 @@ SERVER_ERROR
 		0: unknown error
 		1: malformed packet
 		2: unknown packet id
+		3: invalid action
+		4: insufficent privilages
 	more may be added later so don't assume that only 0, 1 & 2 are to be
 	used.
 
