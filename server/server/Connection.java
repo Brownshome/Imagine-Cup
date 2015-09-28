@@ -14,7 +14,9 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import database.Database;
 import packets.InboundPackets;
+import packets.OutboundPackets;
 import packets.PacketException;
 import framing.COBS;
 import framing.FramingAlgorithm;
@@ -79,7 +81,7 @@ public class Connection {
 					buffer = new ByteArrayOutputStream();
 					continue;
 				}
-				
+
 				buffer.write(b);
 			} catch (IOException e) {
 				System.out.println("Socket closed: " + e.getMessage());
@@ -88,21 +90,24 @@ public class Connection {
 			}
 		}
 	}
-	
+
 	synchronized void addCloseHook(Runnable r) {
 		closeList.add(r);
 	}
-	
+
 	synchronized void closeConnection() {
 		try {
 			in.close();
 			socket.close();
 			out.close();
 		} catch (IOException e) {}
+
+		if(username != null)
+			CONNECTIONS.remove(username);
 		
 		closeList.forEach(Runnable::run);
 	}
-	
+
 	void decodePacket(byte[] byteArray) throws PacketException {
 		ByteArrayInputStream in = new ByteArrayInputStream(FRAMER.decode(byteArray));
 		
@@ -111,7 +116,7 @@ public class Connection {
 			SERVER_ERROR.send(this, 2, "Invalid packet id: " + id);
 			throw new PacketException(id, "Invalid packet ID");
 		}
-		
+
 		System.out.println("Packet recieved " + InboundPackets.values()[id].name() + "(" + id + ")");
 		InboundPackets.values()[id].handle(this, in);
 	}
@@ -123,5 +128,69 @@ public class Connection {
 		} catch(IOException e) { 
 			System.out.println("Error sending packet : " + e.getMessage());
 		}
+	}
+
+	public boolean privilageCheck() {
+		if(username != null)
+			return true;
+		
+		OutboundPackets.SERVER_ERROR.send(this, 4, "You must be logged in to do this.");
+		return false;
+	}
+	
+	public void friendRequest(String username, String msg) {
+		Connection other = CONNECTIONS.get(username);
+
+		if(!privilageCheck())
+			return;
+
+		if(other == this) {
+			OutboundPackets.SERVER_ERROR.send(this, 3, "You cannot send a friend request to yourself, weirdo.");
+			return;
+		}
+
+		if(other != null)
+			OutboundPackets.FRIEND_REQUEST.send(other, this.username, msg);
+
+		Database.IMPL.addFriendRequest(this.username, username, msg);
+	}
+
+	public void friendAccept(String username) {
+		Connection other = CONNECTIONS.get(username);
+
+		if(!privilageCheck())
+			return;
+		
+		if(other == this) {
+			OutboundPackets.SERVER_ERROR.send(this, 3, "There is no friend request from you to yourself, you wish.");
+			return;
+		}
+
+		if(other != null) {
+			OutboundPackets.FRIEND_ACCEPT.send(other, this.username);
+		} else {
+			Database.IMPL.addOutstandingFriendAccept(this.username, username);
+		}
+		
+		Database.IMPL.makeFriends(this.username, username);
+		Database.IMPL.removeFriendRequest(username, this.username);
+	}
+
+	public void friendReject(String name) {
+		Connection other = CONNECTIONS.get(name);
+		
+		if(!privilageCheck())
+			return;
+		
+		if(other == this) {
+			OutboundPackets.SERVER_ERROR.send(this, 3, "Why would you want to reject a friend request from yourself.");
+			return;
+		}
+		
+		if(other != null) {
+			OutboundPackets.FRIEND_REJECT.send(this, username);
+		}
+		
+		Database.IMPL.removeFriendRequest(name, username);
 	}
 }
