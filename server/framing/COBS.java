@@ -2,6 +2,8 @@ package framing;
 
 import java.util.Arrays;
 
+import packets.PacketException;
+
 /** This is COBS encoding, the data is read into segments with 0x00 as delimiters, these 0x00s are removed and the length of each sengment + 1
  * is prepended onto the front. 0xFF has a special meaning, it represents a block of length of 254 */
 public class COBS implements FramingAlgorithm {
@@ -37,7 +39,11 @@ public class COBS implements FramingAlgorithm {
 	}
 
 	@Override
-	public byte[] decode(byte[] data) {
+	public byte[] decode(byte[] data) throws PacketException {
+		if(data.length == 0) {
+			throw new PacketException(-1, "The COBS sequence is malformed");
+		}
+		
 		byte[] newData = new byte[data.length];
 		
 		int in = 0;

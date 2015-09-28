@@ -2,7 +2,7 @@
 package database;
 
 public interface Database {
-	public static final Database IMPL = new SQLHandler();
+	public Database IMPL;
 
 	public boolean canCreateArena(String username);
 	

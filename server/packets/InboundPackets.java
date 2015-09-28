@@ -8,6 +8,7 @@ import static packets.DataType.STRING;
 
 import java.io.ByteArrayInputStream;
 
+import arena.Arena;
 import server.Connection;
 
 public enum InboundPackets {
@@ -21,7 +22,7 @@ public enum InboundPackets {
 	FRIEND_ACCEPT((c, o) -> c.friendAccept((String) o[0]), STRING),
 	FRIEND_REJECT((c, o) -> c.friendReject((String) o[0]), STRING),
 	
-	ARENA_CREATE(null),
+	ARENA_CREATE((c, o) -> new Arena(c)),
 	ARENA_INVITE(null, STRING, STRING),
 	ARENA_LEAVE(null, STRING),
 	
