@@ -2,7 +2,7 @@
 package database;
 
 public interface Database {
-	public Database IMPL;
+	public Database IMPL = null;
 
 	public boolean canCreateArena(String username);
 	

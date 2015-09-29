@@ -10,6 +10,7 @@ import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
 
+import packets.PacketException;
 import server.Server;
 import framing.COBS;
 import framing.FramingAlgorithm;
@@ -55,11 +56,16 @@ public class Connection {
 				}
 
 				if(b == 0x00) {
-					decodePacket(buffer.toByteArray());
+					try {
+						decodePacket(buffer.toByteArray());
+					} catch(PacketException pe) {
+						System.out.println("Error handling packet");
+					}
+					
 					buffer = new ByteArrayOutputStream();
 					continue;
 				}
-				
+
 				buffer.write(b);
 			} catch (IOException e) {
 				System.out.println("Socket closed: " + e.getMessage());
@@ -77,19 +83,20 @@ public class Connection {
 		} catch (IOException e) {}
 	}
 
-	void decodePacket(byte[] byteArray) {
+	void decodePacket(byte[] byteArray) throws PacketException {
 		ByteArrayInputStream in = new ByteArrayInputStream(FRAMER.decode(byteArray));
-		
+
 		int id = in.read();
-		
+
 		if(id >= InboundPackets.values().length) {
 			System.out.println("Packet recieved UNKNOWN(" + id + ")");
 			System.out.println(Arrays.toString(byteArray));
 			System.out.println(new String(byteArray, Server.CHARSET));
 			return;
 		}
-		
+
 		System.out.println("Packet recieved " + InboundPackets.values()[id].name() + "(" + id + ")");
+
 		InboundPackets.values()[id].handle(in);
 	}
 
