@@ -14,6 +14,7 @@ task server(type: Jar, dependsOn: classes) {
 	}
 
 	baseName = 'server'
+	from(sourceSets.main.output)
 }
 
 task client(type: Jar, dependsOn: classes) {
@@ -22,6 +23,7 @@ task client(type: Jar, dependsOn: classes) {
 	}
 
 	baseName = 'client'
+	from(sourceSets.main.output)
 }
 
 task both(dependsOn: ['client', 'server'])
