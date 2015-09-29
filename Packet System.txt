@@ -49,13 +49,13 @@ TEXT_SEND
 FILE_UPLOADED
 	byte 	fileType
 	string	fileName
-	
+
 	fileTypes:
 		0: PNG
 		1: JPEG
 		2: AVI
 		3: GENERAL_FILE
-	
+
 
 FILE_UPLOAD_COMPLETE
 	string name
@@ -68,7 +68,7 @@ FILE_START_TRANSFER
 	connectionTypes:
 		0: stream from server (in this connection.
 		   no data in connectionData)
-		1: stream from server (in new TCP connection, 
+		1: stream from server (in new TCP connection,
 		   connectionData contains the port)
 		2: URL stream (connectionData contains the URL)
 
@@ -124,7 +124,7 @@ STATUS_UPDATE
 
 FEATURES_SEND
 	int		features (a bit mask)
-	
+
 HISTORY_SEND
 	byte	eventType
 	byte[]	data
@@ -185,7 +185,7 @@ UPLOAD_FILE
 	byte 	fileType
 	byte	connectionType
 	string	fileName
-	
+
 	fileTypes:
 		0: PNG
 		1: JPEG
@@ -195,6 +195,10 @@ UPLOAD_FILE
 	connectionTypes:
 		0: stream from server (in this connection.
 		   no data in connectionData)
-		1: stream from server (in new TCP connection, 
+		1: stream from server (in new TCP connection,
 		   connectionData contains the port)
 		2: URL stream (connectionData contains the URL)
+
+LOGIN
+	string username
+	string password
