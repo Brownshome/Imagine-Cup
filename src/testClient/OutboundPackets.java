@@ -35,9 +35,7 @@ public enum OutboundPackets {
 	
 	ANNOTATE_TEXT(FLOAT, FLOAT, FLOAT, STRING),
 	
-	UPLOAD_FILE(BYTE, BYTE, STRING),
-	
-	TEST_PACKET(INTEGER, STRING, BYTE, BINARY);
+	UPLOAD_FILE(BYTE, BYTE, STRING);
 	
 	DataType[] types;
 	OutboundPackets(DataType... types) {
