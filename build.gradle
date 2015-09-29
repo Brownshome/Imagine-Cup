@@ -1,0 +1,27 @@
+apply plugin: 'java'
+
+sourceSets {
+	main {
+		java {
+			srcDir 'src'
+		}
+	}
+}
+
+task server(type: Jar, dependsOn: classes) {
+	manifest {
+        	attributes 'Main-Class': 'server.Server'
+	}
+
+	baseName = 'server'
+}
+
+task client(type: Jar, dependsOn: classes) {
+	manifest {
+        	attributes 'Main-Class': 'testClient.Client'
+	}
+
+	baseName = 'client'
+}
+
+task both(dependsOn: ['client', 'server'])
