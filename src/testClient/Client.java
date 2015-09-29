@@ -4,6 +4,7 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.Socket;
+import java.util.Arrays;
 
 import javax.xml.bind.DatatypeConverter;
 
@@ -41,32 +42,42 @@ public class Client {
 					Connection.connection.sendNonEncoded(DatatypeConverter.parseHexBinary(data[1]));
 				} else {
 					OutboundPackets packet = null;
-					
+
 					try {
 						packet = OutboundPackets.valueOf(data[0]);
 					} catch(IllegalArgumentException iae) {
-						System.out.println("Invalid packet type.");
+						System.out.println("Invalid packet type, the following are valid types:");
+						
+						for(OutboundPackets p : OutboundPackets.values())
+							System.out.println(p);
+						
+						continue;
 					}
-					
+
 					Object[] objects = new Object[packet.types.length];
 
-					for(int i = 0; i < objects.length; i++) {
-						switch(packet.types[i]) {
-						case STRING:
-							objects[i] = data[i + 1];
-							break;
-						case INTEGER:
-							objects[i] = Integer.parseInt(data[i + 1]);
-							break;
-						case BYTE:
-							objects[i] = Byte.parseByte(data[i + 1]);
-							break;
-						case BINARY:
-							objects[i] = DatatypeConverter.parseHexBinary(data[i + 1]);
-							break;
-						case FLOAT:
-							objects[i] = Float.parseFloat(data[i + 1]);
+					try {
+						for(int i = 0; i < objects.length; i++) {
+							switch(packet.types[i]) {
+							case STRING:
+								objects[i] = data[i + 1];
+								break;
+							case INTEGER:
+								objects[i] = Integer.parseInt(data[i + 1]);
+								break;
+							case BYTE:
+								objects[i] = Byte.parseByte(data[i + 1]);
+								break;
+							case BINARY:
+								objects[i] = DatatypeConverter.parseHexBinary(data[i + 1]);
+								break;
+							case FLOAT:
+								objects[i] = Float.parseFloat(data[i + 1]);
+							}
 						}
+					} catch(Exception e) {
+						System.out.println("The format for " + packet + " is " + Arrays.toString(packet.types));
+						continue;
 					}
 
 					packet.send(Connection.connection, objects);
@@ -84,7 +95,7 @@ public class Client {
 
 			System.out.print(objects[i].toString());
 		}
-		
+
 		System.out.println(" ]");
 	}
 }
