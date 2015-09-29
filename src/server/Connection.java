@@ -135,6 +135,8 @@ public class Connection {
 	public void login(String username, String password) {
 		// TODO Process login information
 		this.username = username;
+
+		OutboundPackets.OK.send(this);
 	}
 
 	public boolean privilageCheck() {

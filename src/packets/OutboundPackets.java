@@ -43,7 +43,9 @@ public enum OutboundPackets {
 
 	FEATURES_SEND(INTEGER),
 
-	HISTORY_SEND(BYTE, BINARY);
+	HISTORY_SEND(BYTE, BINARY),
+
+	OK();
 
 	private DataType[] types;
 	OutboundPackets(DataType... types) {
