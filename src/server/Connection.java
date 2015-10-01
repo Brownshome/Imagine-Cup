@@ -142,7 +142,8 @@ public class Connection {
 	public void login(String username, String password) {
 		// TODO Process login information
 		this.username = username;
-
+		CONNECTIONS.put(username, this);
+		
 		OutboundPackets.OK.send(this);
 	}
 

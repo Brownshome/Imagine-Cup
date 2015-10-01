@@ -39,7 +39,7 @@ public enum InboundPackets {
 	ANNOTATE_TEXT(null, FLOAT, FLOAT, FLOAT, STRING),
 	
 	FILE_UPLOAD((c, o) -> c.handleFileUpload((byte) o[0], (byte) o[1], (int) o[2], (String) o[3], (String) o[4]), BYTE, BYTE, INTEGER, STRING, STRING),
-	FILE_TRANFER((c, o) -> c.handleFileDataPacket((String) o[0], (byte[]) o[1]), STRING, BINARY);
+	FILE_TRANFER((c, o) -> c.handleFileDataPacket((String) o[0], (byte[]) o[1]), STRING, BINARY),
 	
 	LOGIN((c, o) -> c.login((String) o[0], (String) o[1]), STRING, STRING);
 
