@@ -24,13 +24,13 @@ import framing.FramingAlgorithm;
 public class Connection {
 	/** This contains a username - connection map, users are added to this once they successfully log in */
 	public static final Map<String, Connection> CONNECTIONS = new HashMap<>();
-	
+
 	/** The packet sepperation algorithm that is used */
 	static final FramingAlgorithm FRAMER = new COBS();
-	
+
 	/** The thread pool that connections are formed with */
 	static final ExecutorService POOL = Executors.newCachedThreadPool(); //I know this is vunlnerable to DoS but I'll worry about that later
-	
+
 	public static void createNewConnection(Socket socket) {
 		System.out.println("Accepted connection from " + socket.getInetAddress());
 		POOL.submit(new Connection(socket)::listenJob);
@@ -38,6 +38,7 @@ public class Connection {
 
 	public Socket socket;
 	public String username;
+
 	public Arena arena;
 	
 	InputStream in;
@@ -47,18 +48,18 @@ public class Connection {
 	
 	Connection(Socket socket) {
 		this.socket = socket;
-		
+
 		try {
-			in = socket.getInputStream(); 
+			in = socket.getInputStream();
 			out = socket.getOutputStream();
 		} catch(IOException ioex) {
 			closeConnection();
 			System.out.println("Failed to create IO stream : " + ioex.getMessage());
 		}
-		
+
 		username = null;
 	}
-	
+
 	void listenJob() {
 		int b;
 		ByteArrayOutputStream buffer = new ByteArrayOutputStream();
@@ -71,15 +72,17 @@ public class Connection {
 					return;
 				}
 
-				if(b == 0x00) {					
+				if(b == 0x00) {
 					byte[] bytes = buffer.toByteArray();
-					
+
 					try {
 						decodePacket(bytes);
-					} catch(PacketException pde) {
+					} catch (PacketException pde) {
 						System.out.println(pde.getMessage());
+					} catch (Exception e) {
+						e.printStackTrace();
 					}
-					
+
 					buffer = new ByteArrayOutputStream();
 					continue;
 				}
@@ -110,13 +113,13 @@ public class Connection {
 
 		if(username != null)
 			CONNECTIONS.remove(username);
-		
+
 		closeList.forEach(Runnable::run);
 	}
 
 	void decodePacket(byte[] byteArray) throws PacketException {
 		ByteArrayInputStream in = new ByteArrayInputStream(FRAMER.decode(byteArray));
-		
+
 		int id = in.read();
 		if(id >= InboundPackets.values().length || id < 0) {
 			OutboundPackets.SERVER_ERROR.send(this, 2, "Invalid packet id: " + id);
@@ -131,19 +134,26 @@ public class Connection {
 		try {
 			out.write(FRAMER.encode(data));
 			out.write(0x00);
-		} catch(IOException e) { 
+		} catch(IOException e) {
 			System.out.println("Error sending packet : " + e.getMessage());
 		}
+	}
+
+	public void login(String username, String password) {
+		// TODO Process login information
+		this.username = username;
+
+		OutboundPackets.OK.send(this);
 	}
 
 	public boolean privilageCheck() {
 		if(username != null)
 			return true;
-		
+
 		OutboundPackets.SERVER_ERROR.send(this, 4, "You must be logged in to do this.");
 		return false;
 	}
-	
+
 	public void friendRequest(String username, String msg) {
 		Connection other = CONNECTIONS.get(username);
 
@@ -166,7 +176,7 @@ public class Connection {
 
 		if(!privilageCheck())
 			return;
-		
+
 		if(other == this) {
 			OutboundPackets.SERVER_ERROR.send(this, 3, "There is no friend request from you to yourself, you wish.");
 			return;
@@ -177,26 +187,26 @@ public class Connection {
 		} else {
 			Database.IMPL.addOutstandingFriendAccept(this.username, username);
 		}
-		
+
 		Database.IMPL.makeFriends(this.username, username);
 		Database.IMPL.removeFriendRequest(username, this.username);
 	}
 
 	public void friendReject(String name) {
 		Connection other = CONNECTIONS.get(name);
-		
+
 		if(!privilageCheck())
 			return;
-		
+
 		if(other == this) {
 			OutboundPackets.SERVER_ERROR.send(this, 3, "Why would you want to reject a friend request from yourself.");
 			return;
 		}
-		
+
 		if(other != null) {
 			OutboundPackets.FRIEND_REJECT.send(this, username);
 		}
-		
+
 		Database.IMPL.removeFriendRequest(name, username);
 	}
 
