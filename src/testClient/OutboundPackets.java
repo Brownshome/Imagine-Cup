@@ -27,6 +27,7 @@ public enum OutboundPackets {
 	ARENA_JOIN(STRING),
 	
 	PREFERENCES_SET(BINARY),
+	PREFERENCES_GET(),
 
 	STATUS_UPDATE(STRING),
 

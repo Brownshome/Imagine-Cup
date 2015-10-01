@@ -23,12 +23,12 @@ public enum InboundPackets {
 	FRIEND_REJECT((c, o) -> c.friendReject((String) o[0]), STRING),
 
 	ARENA_CREATE((c, o) -> new Arena(c)),
-
 	ARENA_INVITE((c, o) -> c.inviteToArena((String) o[0], (String) o[1]), STRING, STRING),
 	ARENA_LEAVE((c, o) -> Arena.removeFromArena((String) o[0], c), STRING),
 	ARENA_JOIN((c, o) -> Arena.addToArena((String) o[0], c), STRING),
 	
-	PREFERENCES_SET(null, BINARY),
+	PREFERENCES_SET((c, o) -> c.setPreferences((byte[]) o[0]), BINARY),
+	PREFERENCES_GET((c, o) -> c.sendPreferences()),
 
 	STATUS_UPDATE(null, STRING),
 

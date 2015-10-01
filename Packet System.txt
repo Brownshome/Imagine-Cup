@@ -123,10 +123,16 @@ STATUS_UPDATE
 	string 	status
 
 FEATURES_SEND
-	int		features (a bit mask)
+	int	features (a bit mask)
 
 HISTORY_SEND
 	byte	eventType
+	byte[]	data
+
+OK
+	no data
+
+PREFERENCES_SEND
 	byte[]	data
 
 Client To Server Packets
@@ -167,6 +173,9 @@ ARENA_JOIN
 
 PREFERENCES_SET
 	byte[]	data
+
+PREFERENCES_GET
+	no data
 
 STATUS_UPDATE
 	string	status

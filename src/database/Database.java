@@ -28,4 +28,6 @@ public interface Database {
 	public boolean allowFriendsToInvite(String username);
 	public boolean allowNonFriendsToInvite(String username);
 	public void addArenaInvite(String owner, String username, String message);
+	public void setPreferences(String username, byte[] preferences);
+	public byte[] getPreferences(String username);
 }

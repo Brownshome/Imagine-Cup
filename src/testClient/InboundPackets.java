@@ -44,7 +44,9 @@ public enum InboundPackets {
 
 	HISTORY_SEND(BYTE, BINARY),
 
-	OK();
+	OK(),
+	
+	PREFERENCES_SEND(BINARY);
 
 	private DataType[] types;
 

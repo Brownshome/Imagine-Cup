@@ -260,4 +260,18 @@ public class Connection {
 			OutboundPackets.ARENA_INVITE.send(connection, a.owner, message);
 		}
 	}
+
+	public void setPreferences(byte[] preferences) {
+		if(!privilageCheck())
+			return;
+		
+		Database.IMPL.setPreferences(username, preferences);
+	}
+	
+	public void sendPreferences() {
+		if(!privilageCheck())
+			return;
+		
+		OutboundPackets.PREFERENCES_SEND.send(this, Database.IMPL.getPreferences(username));
+	}
 }
