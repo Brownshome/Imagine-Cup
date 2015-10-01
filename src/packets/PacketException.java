@@ -8,7 +8,7 @@ public class PacketException extends Exception {
 		if(packet < 0 || packet > InboundPackets.values().length)
 			packetType = InboundPackets.values()[packet];
 		
-		return "Packet error processing " + packetType == null ? "UNKNOWN" : packetType.name() + " : " + detail;
+		return "Packet error processing " + (packetType == null ? "UNKNOWN" : packetType.name()) + " : " + detail;
 	}
 	
 	public PacketException(int packet, String detail) {
