@@ -23,8 +23,9 @@ public enum InboundPackets {
 	FRIEND_REJECT((c, o) -> c.friendReject((String) o[0]), STRING),
 	
 	ARENA_CREATE((c, o) -> new Arena(c)),
-	ARENA_INVITE(null, STRING, STRING),
-	ARENA_LEAVE(null, STRING),
+	ARENA_INVITE((c, o) -> c.inviteToArena((String) o[0], (String) o[1]), STRING, STRING),
+	ARENA_LEAVE((c, o) -> Arena.removeFromArena((String) o[0], c), STRING),
+	ARENA_JOIN((c, o) -> Arena.addToArena((String) o[0], c), STRING),
 	
 	PREFERENCES_SET(null, BINARY),
 	
@@ -36,7 +37,8 @@ public enum InboundPackets {
 	
 	ANNOTATE_TEXT(null, FLOAT, FLOAT, FLOAT, STRING),
 	
-	UPLOAD_FILE(null, BYTE, BYTE, STRING);
+	FILE_UPLOAD((c, o) -> c.handleFileUpload((byte) o[0], (byte) o[1], (int) o[2], (String) o[3], (String) o[4]), BYTE, BYTE, INTEGER, STRING, STRING),
+	FILE_TRANFER((c, o) -> c.handleFileDataPacket((String) o[0], (byte[]) o[1]), STRING, BINARY);
 	
 	private DataType[] types;
 	private PacketHandler handler;

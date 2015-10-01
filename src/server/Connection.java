@@ -1,23 +1,23 @@
 package server;
 
-import static packets.OutboundPackets.SERVER_ERROR;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
-import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import database.Database;
 import packets.InboundPackets;
 import packets.OutboundPackets;
 import packets.PacketException;
+import arena.Arena;
+import database.Database;
 import framing.COBS;
 import framing.FramingAlgorithm;
 
@@ -38,10 +38,12 @@ public class Connection {
 
 	public Socket socket;
 	public String username;
+	public Arena arena;
 	
 	InputStream in;
 	OutputStream out;
-	ArrayList<Runnable> closeList = new ArrayList<>();
+	
+	Set<Runnable> closeList = new HashSet<>();
 	
 	Connection(Socket socket) {
 		this.socket = socket;
@@ -91,10 +93,14 @@ public class Connection {
 		}
 	}
 
-	synchronized void addCloseHook(Runnable r) {
+	public synchronized void addCloseHook(Runnable r) {
 		closeList.add(r);
 	}
 
+	public synchronized void removeCloseHook(Runnable r) {
+		closeList.remove(r);
+	}
+	
 	synchronized void closeConnection() {
 		try {
 			in.close();
@@ -113,7 +119,7 @@ public class Connection {
 		
 		int id = in.read();
 		if(id >= InboundPackets.values().length || id < 0) {
-			SERVER_ERROR.send(this, 2, "Invalid packet id: " + id);
+			OutboundPackets.SERVER_ERROR.send(this, 2, "Invalid packet id: " + id);
 			throw new PacketException(id, "Invalid packet ID");
 		}
 
@@ -192,5 +198,55 @@ public class Connection {
 		}
 		
 		Database.IMPL.removeFriendRequest(name, username);
+	}
+
+	public void handleFileUpload(byte fileType, byte connectionType, int size, String name, String URL) {
+		switch(connectionType) {
+			case 0: //stream from client
+				inConnectionTransfer(fileType, size, name, URL);
+				break;
+			case 1: //stream from client in sepperate connection
+				
+				break;
+			case 2: //URL stream
+				break;
+		}
+	}
+
+	public void inConnectionTransfer(byte fileType, int size, String name, String URL) {
+		
+	}
+
+	public void handleFileDataPacket(String string, byte[] bs) {
+		
+	}
+
+	public void inviteToArena(String other, String message) {
+		if(!privilageCheck())
+			return;
+		
+		if(!Arena.ARENAS.containsKey(username) && arena == null) {
+			OutboundPackets.SERVER_ERROR.send(this, 3, "You are do not own an arena or are part of one.");
+			return;
+		}
+		
+		Arena a = Arena.ARENAS.get(username);
+		if(a == null)
+			a = arena;
+		
+		if(!a.owner.equals(username) && 
+		!Database.IMPL.allowNonFriendsToInvite(username) && 
+		!(Database.IMPL.allowFriendsToInvite(username) && Database.IMPL.isFriend(a.owner, username))) {
+			OutboundPackets.SERVER_ERROR.send(this, 4, "You are not allowed to invite people to this arena.");
+			return;
+		}
+		
+		Database.IMPL.addArenaInvite(a.owner, other, message);
+		
+		Connection connection = CONNECTIONS.get(other);
+		
+		if(connection != null) {
+			OutboundPackets.ARENA_INVITE.send(connection, a.owner, message);
+		}
 	}
 }

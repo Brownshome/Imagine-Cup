@@ -63,7 +63,7 @@ FILE_UPLOAD_COMPLETE
 FILE_START_TRANSFER
 	string 	name
 	byte	connectionType
-	byte[]	connectionData (may be absent)
+	byte[]	connectionData (may be empty)
 
 	connectionTypes:
 		0: stream from server (in this connection.
@@ -98,7 +98,7 @@ ARENA_CLOSED
 	string 	reason
 
 ARENA_INVITE
-	string 	username
+	string 	owner
 	string 	messege
 
 NEWS_FEED_SEND
@@ -162,6 +162,9 @@ ARENA_INVITE
 ARENA_LEAVE
 	string	reason
 
+ARENA_JOIN
+	string	username
+
 PREFERENCES_SET
 	byte[]	data
 
@@ -185,6 +188,7 @@ UPLOAD_FILE
 	byte 	fileType
 	byte	connectionType
 	string	fileName
+	string	URL (may be empty)
 	
 	fileTypes:
 		0: PNG
@@ -193,8 +197,18 @@ UPLOAD_FILE
 		3: GENERAL_FILE
 
 	connectionTypes:
-		0: stream from server (in this connection.
-		   no data in connectionData)
-		1: stream from server (in new TCP connection, 
-		   connectionData contains the port)
+		0: stream from client
+		1: stream from client in sepperate connection
 		2: URL stream (connectionData contains the URL)
+
+FILE_UPLOAD
+	byte	fileType
+	byte	connectionType
+	int	size
+	string	name
+	string	URL
+	
+FILE_TRANSFER
+	string	name
+	byte[]	data
+	
