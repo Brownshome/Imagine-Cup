@@ -1,0 +1,27 @@
+UserPrefs
+~~~~~~~~~
+
+| username | nonFriendsJoin | friendsJoin | nonFriendsInvite | friendsInvite | shareInfo |
+|----------|----------------|-------------|------------------|---------------|-----------|
+|  STRING  |    BOOLEAN     |   BOOLEAN   |     BOOLEAN      |    BOOLEAN    |  BOOLEAN  |
+
+LoginData
+~~~~~~~~~
+
+| username | password |
+|----------|----------|  -> Andrew, let me know when you finalize this
+|  STRING  |  STRING  |
+
+FriendRequests
+~~~~~~~~~~~~~~
+
+|  from  |   to   | message | date made |
+|--------|--------|---------|-----------|
+| STRING | STRING | STRING  |   DATE    |
+
+Invites
+~~~~~~~
+
+| username | owner  | message | time made |
+|----------|--------|---------|-----------|
+|  STRING  | STRING | STRING  | TIMESTAMP |
