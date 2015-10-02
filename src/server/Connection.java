@@ -274,4 +274,17 @@ public class Connection {
 		
 		OutboundPackets.PREFERENCES_SEND.send(this, Database.IMPL.getPreferences(username));
 	}
+
+	public void annotateText(float x, float y, float z, String string) {
+		if(!privilageCheck())
+			return;
+		
+		if(arena == null) {
+			OutboundPackets.SERVER_ERROR.send(this, 3, "You are not a member of an arena.");
+			return;
+		}
+		
+		for(Connection c : arena.members.keySet())
+			OutboundPackets.ANNOTATE_TEXT.send(c, username, x, y, z, string);
+	}
 }

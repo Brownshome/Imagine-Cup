@@ -16,7 +16,7 @@ public class Arena {
 	public String owner;
 	
 	//NB: includes the owner aswell
-	Map<Connection, Runnable> members = Collections.synchronizedMap(new HashMap<>());
+	public Map<Connection, Runnable> members = Collections.synchronizedMap(new HashMap<>());
 	
 	public Arena(Connection owner) {
 		if(!owner.privilageCheck())
