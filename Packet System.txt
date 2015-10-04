@@ -30,6 +30,7 @@ SERVER_ERROR
 		2: unknown packet id
 		3: invalid action
 		4: insufficent privilages
+		5: database error (usually invalid username)
 	more may be added later so don't assume that only 0, 1 & 2 are to be
 	used.
 
@@ -105,15 +106,12 @@ NEWS_FEED_SEND
 	int	type
 	byte[]	data
 
+FRIEND_SEND
+	string	username
+
 FRIEND_REQUEST
 	string 	username
 	string	text
-
-FRIEND_ACCEPT
-	string	username
-
-FRIEND_REJECT
-	string	username
 
 FRIEND_REMOVE
 	string	username
@@ -133,7 +131,7 @@ OK
 	no data
 
 PREFERENCES_SEND
-	byte[]	data
+	byte	data
 
 Client To Server Packets
 ------------------------
@@ -172,7 +170,7 @@ ARENA_JOIN
 	string	username
 
 PREFERENCES_SET
-	byte[]	data
+	byte	mask
 
 PREFERENCES_GET
 	no data

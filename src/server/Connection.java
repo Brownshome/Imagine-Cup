@@ -18,6 +18,7 @@ import packets.OutboundPackets;
 import packets.PacketException;
 import arena.Arena;
 import database.Database;
+import database.DatabaseException;
 import framing.COBS;
 import framing.FramingAlgorithm;
 
@@ -144,6 +145,12 @@ public class Connection {
 		this.username = username;
 		CONNECTIONS.put(username, this);
 		
+		try {
+		Database.IMPL.createUserIfAbsent(username);
+		} catch(DatabaseException de) {
+			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
+		}
+		
 		OutboundPackets.OK.send(this);
 	}
 
@@ -169,7 +176,12 @@ public class Connection {
 		if(other != null)
 			OutboundPackets.FRIEND_REQUEST.send(other, this.username, msg);
 
-		Database.IMPL.addFriendRequest(this.username, username, msg);
+		try {
+			Database.IMPL.addFriendRequest(this.username, username, msg);
+		} catch(DatabaseException de) {
+			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
+			return;
+		}
 	}
 
 	public void friendAccept(String username) {
@@ -184,13 +196,16 @@ public class Connection {
 		}
 
 		if(other != null) {
-			OutboundPackets.FRIEND_ACCEPT.send(other, this.username);
-		} else {
-			Database.IMPL.addOutstandingFriendAccept(this.username, username);
+			OutboundPackets.FRIEND_SEND.send(other, this.username);
+			OutboundPackets.FRIEND_SEND.send(this, username);
 		}
 
-		Database.IMPL.makeFriends(this.username, username);
-		Database.IMPL.removeFriendRequest(username, this.username);
+		try {
+			Database.IMPL.acceptFriendRequest(this.username, username);
+		} catch(DatabaseException de) {
+			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
+			return;
+		}
 	}
 
 	public void friendReject(String name) {
@@ -204,11 +219,12 @@ public class Connection {
 			return;
 		}
 
-		if(other != null) {
-			OutboundPackets.FRIEND_REJECT.send(this, username);
+		try {
+			Database.IMPL.removeFriendRequest(name, username);
+		} catch (DatabaseException e) {
+			OutboundPackets.SERVER_ERROR.send(this, 5, e.getMessage());
+			return;
 		}
-
-		Database.IMPL.removeFriendRequest(name, username);
 	}
 
 	public void handleFileUpload(byte fileType, byte connectionType, int size, String name, String URL) {
@@ -245,34 +261,49 @@ public class Connection {
 		if(a == null)
 			a = arena;
 		
-		if(!a.owner.equals(username) && 
-		!Database.IMPL.allowNonFriendsToInvite(username) && 
-		!(Database.IMPL.allowFriendsToInvite(username) && Database.IMPL.isFriend(a.owner, username))) {
-			OutboundPackets.SERVER_ERROR.send(this, 4, "You are not allowed to invite people to this arena.");
+		try {
+			if(!a.owner.equals(username) && 
+			!Database.IMPL.allowNonFriendsToInvite(username) && 
+			!(Database.IMPL.allowFriendsToInvite(username) && Database.IMPL.isFriend(a.owner, username))) {
+				OutboundPackets.SERVER_ERROR.send(this, 4, "You are not allowed to invite people to this arena.");
+				return;
+			}
+		
+			Database.IMPL.addArenaInvite(a.owner, other, message);
+		
+			Connection connection = CONNECTIONS.get(other);
+		
+			if(connection != null) {
+				OutboundPackets.ARENA_INVITE.send(connection, a.owner, message);
+			}
+		} catch(DatabaseException de) {
+			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
 			return;
-		}
-		
-		Database.IMPL.addArenaInvite(a.owner, other, message);
-		
-		Connection connection = CONNECTIONS.get(other);
-		
-		if(connection != null) {
-			OutboundPackets.ARENA_INVITE.send(connection, a.owner, message);
 		}
 	}
 
-	public void setPreferences(byte[] preferences) {
+	public void setPreferences(int preferences) {
 		if(!privilageCheck())
 			return;
 		
-		Database.IMPL.setPreferences(username, preferences);
+		try {
+			Database.IMPL.setPreferences(username, preferences);
+		} catch(DatabaseException de) {
+			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
+			return;
+		}
 	}
 	
 	public void sendPreferences() {
 		if(!privilageCheck())
 			return;
 		
-		OutboundPackets.PREFERENCES_SEND.send(this, Database.IMPL.getPreferences(username));
+		try {
+			OutboundPackets.PREFERENCES_SEND.send(this, Database.IMPL.getPreferences(username));
+		} catch(DatabaseException de) {
+			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
+			return;
+		}
 	}
 
 	public void annotateText(float x, float y, float z, String string) {

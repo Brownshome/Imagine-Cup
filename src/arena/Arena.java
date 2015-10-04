@@ -8,6 +8,7 @@ import java.util.Map.Entry;
 import packets.OutboundPackets;
 import server.Connection;
 import database.Database;
+import database.DatabaseException;
 
 public class Arena {
 	public static final Map<String, Arena> ARENAS = Collections.synchronizedMap(new HashMap<>());
@@ -41,11 +42,12 @@ public class Arena {
 		if(!member.privilageCheck())
 			return;
 		
-		if(!Database.IMPL.acceptInvite(owner, member.username) && 
-		!(Database.IMPL.isFriend(owner, member.username) && Database.IMPL.allowFriendsToJoin(owner)) &&
-		!Database.IMPL.allowNonFriendsToJoin(owner)) {
-			OutboundPackets.SERVER_ERROR.send(member, 4, "You are not invited to this arena.");
-		}
+		try {
+			if(!Database.IMPL.acceptInvite(owner, member.username) && 
+					!(Database.IMPL.isFriend(owner, member.username) && Database.IMPL.allowFriendsToJoin(owner)) &&
+					!Database.IMPL.allowNonFriendsToJoin(owner)) {
+				OutboundPackets.SERVER_ERROR.send(member, 4, "You are not invited to this arena.");
+			}
 		
 		Arena arena = ARENAS.get(owner);
 		if(arena == null) {
@@ -80,6 +82,10 @@ public class Arena {
 		member.arena = arena;
 		
 		//TODO start audio stream
+		
+		} catch(DatabaseException de) {
+			OutboundPackets.SERVER_ERROR.send(member, 5, de.getMessage());
+		}
 	}
 
 	public static void closeArena(String reason, Connection owner) {
@@ -127,9 +133,13 @@ public class Arena {
 		
 		leaver.arena = null;
 		
+		try {
 		if(arena.members.isEmpty() && Database.IMPL.closeEmptyArenas(leaver.username)) {
 			ARENAS.remove(arena.owner);
 			//TODO logging
+		}
+		} catch(DatabaseException de) {
+			OutboundPackets.SERVER_ERROR.send(leaver, 5, de.getMessage());
 		}
 	}
 }

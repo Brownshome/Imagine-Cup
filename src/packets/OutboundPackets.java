@@ -34,9 +34,8 @@ public enum OutboundPackets {
 
 	NEWS_FEED_SEND(BYTE, BINARY),
 
+	FRIEND_SEND(STRING),
 	FRIEND_REQUEST(STRING, STRING),
-	FRIEND_ACCEPT(STRING),
-	FRIEND_REJECT(STRING),
 	FRIEND_REMOVE(STRING),
 
 	STATUS_UPDATE(STRING, STRING),
@@ -47,7 +46,7 @@ public enum OutboundPackets {
 
 	OK(),
 	
-	PREFERENCES_SEND(BINARY);
+	PREFERENCES_SEND(INTEGER);
 
 	private DataType[] types;
 	OutboundPackets(DataType... types) {

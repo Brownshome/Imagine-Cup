@@ -29,19 +29,19 @@ Invites
 UserData
 ~~~~~~~~
 
-| username | date made | AVATAR DATA |
+| username | date made | AVATAR DATA | 
 |----------|-----------|-------------|
 |  STRING  |   DATE    |   BINARY    |
 
 ChatHistory
-~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~
 
 | username |  from  |  text  | date |
 |----------|--------|--------|------|
 |  STRING  | STRING | STRING | DATE |
 
 ArenaHistory
-~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~
 
 | username | event  | date |
 |----------|--------|------|
