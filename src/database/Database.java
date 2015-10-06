@@ -26,4 +26,6 @@ public interface Database {
 	public boolean 	allowNonFriendsToInvite(String username) throws DatabaseException;
 	public void 	setPreferences(String username, int preferences) throws DatabaseException;
 	public int 		getPreferences(String username) throws DatabaseException;
+
+	public void 	addChatMessage(String username, String to, String text) throws DatabaseException;
 }

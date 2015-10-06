@@ -41,6 +41,7 @@ AVATAR_SEND
 TEXT_SEND
 	byte	type
 	string 	text
+	string	from
 
 	type codes:
 		0: VoiceTranslation
@@ -143,6 +144,7 @@ FEATURES_GET
 	no data
 
 TEXT_SEND
+	byte	type
 	string	text
 	string	username
 

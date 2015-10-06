@@ -61,10 +61,10 @@ public class SQLEmbededDatabase implements Database {
 		
 		"CREATE TABLE ChatHistory "
 		+ "("
-		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "
 		+ "UserFrom VARCHAR(255) NOT NULL REFERENCES LoginData, "
+		+ "UserTo VARCHAR(255) NOT NULL REFERENCES LoginData, "
 		+ "Text VARCHAR(8192), "
-		+ "DateMade DATE DEFAULT CURRENT_DATE "
+		+ "DateMade TIMESTAMP DEFAULT CURRENT_TIMESTAMP "
 		+ ")",
 		
 		"CREATE TABLE ArenaHistory "
@@ -131,6 +131,7 @@ public class SQLEmbededDatabase implements Database {
 		allowNonFriendsToInvite = connection.prepareStatement("SELECT NonFriendsInvite FROM UserPrefs WHERE Username = ?");
 		setPreferences = connection.prepareStatement("UPDATE UserPrefs SET NonFriendsJoin = ?, FriendsJoin = ?, NonFriendsInvite = ?, FriendsInvite = ?, ShareInfo = ? WHERE Username = ?");
 		getPreferences = connection.prepareStatement("SELECT NonFriendsJoin, FriendsJoin, NonFriendsInvite, FriendsInvite, ShareInfo FROM UserPrefs WHERE Username = ?");
+		addChatMessage = connection.prepareStatement("INSERT INTO ChatHistory (UserTo, UserFrom, Text) VALUES (?, ?, ?)");
 	}
 
 	PreparedStatement[] createUser;
@@ -413,6 +414,21 @@ public class SQLEmbededDatabase implements Database {
 			
 			return out;
 		} catch(SQLException ex) {
+			throw new DatabaseException(ex);
+		}
+	}
+
+	PreparedStatement addChatMessage;
+	@Override
+	public void addChatMessage(String username, String to, String text) throws DatabaseException {
+		try {
+			addChatMessage.setString(1, to);
+			addChatMessage.setString(2, username);
+			addChatMessage.setString(3, text);
+			addChatMessage.executeUpdate();
+		} catch(SQLException ex) {
+			if(ex.getSQLState().equals(ERR_REFERENCE))
+				throw new DatabaseException("That user is not valid.");
 			throw new DatabaseException(ex);
 		}
 	}

@@ -1,3 +1,4 @@
+
 package packets;
 
 import static packets.DataType.BINARY;
@@ -16,7 +17,7 @@ public enum InboundPackets {
 
 	FEATURES_GET(null),
 
-	TEXT_SEND(null, STRING, STRING),
+	TEXT_SEND((c, o) -> c.sendText((byte) o[0], (String) o[1], (String) o[2]), BYTE, STRING, STRING),
 
 	FRIEND_REQUEST((c, o) -> c.friendRequest((String) o[0], (String) o[1]), STRING, STRING),
 	FRIEND_ACCEPT((c, o) -> c.friendAccept((String) o[0]), STRING),
