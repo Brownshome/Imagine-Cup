@@ -1,0 +1,41 @@
+UserPrefs
+~~~~~~~~~
+
+| Username | NonFriendsJoin | FriendsJoin | NonFriendsInvite | FriendsInvite | ShareInfo |
+|----------|----------------|-------------|------------------|---------------|-----------|
+|  STRING  |    BOOLEAN     |   BOOLEAN   |     BOOLEAN      |    BOOLEAN    |  BOOLEAN  |
+
+LoginData
+~~~~~~~~~
+
+| Username | Password |
+|----------|----------|  -> Andrew, let me know when you finalize this
+|  STRING  |  STRING  |
+
+FriendRequests
+~~~~~~~~~~~~~~
+
+|  from  |   to   | message | date made | accepted |
+|--------|--------|---------|-----------|----------|
+| STRING | STRING | STRING  |   DATE    | BOOLEAN  |
+
+UserData
+~~~~~~~~
+
+| username | date made | AVATAR DATA | 
+|----------|-----------|-------------|
+|  STRING  |   DATE    |   BINARY    |
+
+ChatHistory
+~~~~~~~~~~~
+
+| username |  from  |  text  | date |
+|----------|--------|--------|------|
+|  STRING  | STRING | STRING | DATE |
+
+ArenaHistory
+~~~~~~~~~~~~
+
+| username | event  | date |
+|----------|--------|------|
+|  STRING  | STRING | DATE |

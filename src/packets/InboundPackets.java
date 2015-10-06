@@ -27,7 +27,7 @@ public enum InboundPackets {
 	ARENA_LEAVE((c, o) -> Arena.removeFromArena((String) o[0], c), STRING),
 	ARENA_JOIN((c, o) -> Arena.addToArena((String) o[0], c), STRING),
 	
-	PREFERENCES_SET((c, o) -> c.setPreferences((byte[]) o[0]), BINARY),
+	PREFERENCES_SET((c, o) -> c.setPreferences((int) o[0]), INTEGER),
 	PREFERENCES_GET((c, o) -> c.sendPreferences()),
 
 	STATUS_UPDATE(null, STRING),
