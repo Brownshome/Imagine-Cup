@@ -22,6 +22,7 @@ public enum InboundPackets {
 	FRIEND_ACCEPT((c, o) -> c.friendAccept((String) o[0]), STRING),
 	FRIEND_REJECT((c, o) -> c.friendReject((String) o[0]), STRING),
 
+	ARENA_CLOSE((c, o) -> Arena.closeArena((String) o[0], c), STRING),
 	ARENA_CREATE((c, o) -> new Arena(c)),
 	ARENA_INVITE((c, o) -> c.inviteToArena((String) o[0], (String) o[1]), STRING, STRING),
 	ARENA_LEAVE((c, o) -> Arena.removeFromArena((String) o[0], c), STRING),

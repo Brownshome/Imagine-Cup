@@ -156,6 +156,9 @@ FRIEND_ACCEPT
 FRIEND_REJECT
 	string	username
 
+ARENA_CLOSE
+	string	reason
+
 ARENA_CREATE
 	no data
 
