@@ -20,7 +20,6 @@ public class SQLEmbededDatabase implements Database {
 		"UserPrefs",
 		"LoginData",
 		"FriendRequests",
-		"Invites",
 		"UserData",
 		"ChatHistory",
 		"ArenaHistory"
@@ -46,15 +45,6 @@ public class SQLEmbededDatabase implements Database {
 		+ "("
 		+ "UserFrom VARCHAR(255) NOT NULL REFERENCES LoginData, "
 		+ "UserTo VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "Message VARCHAR(255), "
-		+ "DateMade DATE DEFAULT CURRENT_DATE, "
-		+ "Accepted BOOLEAN DEFAULT FALSE "
-		+ ")",
-	
-		"CREATE TABLE Invites "
-		+ "("
-		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "Owner VARCHAR(255) NOT NULL REFERENCES LoginData, "
 		+ "Message VARCHAR(255), "
 		+ "DateMade DATE DEFAULT CURRENT_DATE, "
 		+ "Accepted BOOLEAN DEFAULT FALSE "
@@ -125,7 +115,7 @@ public class SQLEmbededDatabase implements Database {
 				connection.prepareStatement("INSERT INTO UserPrefs (Username) VALUES ?"),
 				connection.prepareStatement("INSERT INTO UserData (Username) VALUES ?")
 		};
-
+		updateLastSeen = connection.prepareStatement("UPDATE UserData SET LastSeen = CURRENT_DATE WHERE Username = ?");
 		incommingFriendRequests = connection.prepareStatement("SELECT UserFrom, Message FROM FriendRequests WHERE UserTo = ? AND NOT Accepted");
 		outgoingFriendRequests = connection.prepareStatement("SELECT UserTo, Message FROM FriendRequests WHERE UserFrom = ? AND NOT Accepted");
 		friends = connection.prepareStatement("SELECT UserTo, UserFrom FROM FriendRequests WHERE (UserTo = ? OR UserFrom = ?) AND Accepted");
@@ -134,19 +124,18 @@ public class SQLEmbededDatabase implements Database {
 		acceptFriendRequest = connection.prepareStatement("UPDATE FriendRequests SET Accepted = TRUE WHERE UserFrom = ? AND UserTo = ?");
 		removeFriendRequest = connection.prepareStatement("DELETE FROM FriendRequests WHERE UserTo = ? AND UserFrom = ?");
 		getAvatarData = connection.prepareStatement("SELECT AvatarData FROM UserData WHERE Username = ?");
-		acceptInvite = connection.prepareStatement("UPDATE Invites SET Accepted = TRUE WHERE Username = ? AND Owner = ?");
 		allowNonFriendsToJoin = connection.prepareStatement("SELECT NonFriendsJoin FROM UserPrefs WHERE Username = ?");
 		allowFriendsToJoin = connection.prepareStatement("SELECT FriendsJoin FROM UserPrefs WHERE Username = ?");
 		allowFriendsToInvite = connection.prepareStatement("SELECT FriendsInvite FROM UserPrefs WHERE Username = ?");
 		allowNonFriendsToInvite = connection.prepareStatement("SELECT NonFriendsInvite FROM UserPrefs WHERE Username = ?");
-		addArenaInvite = connection.prepareStatement("INSERT INTO Invites (Username, Owner, Message) VALUES (?, ?, ?)");
 		setPreferences = connection.prepareStatement("UPDATE UserPrefs SET NonFriendsJoin = ?, FriendsJoin = ?, NonFriendsInvite = ?, FriendsInvite = ?, ShareInfo = ? WHERE Username = ?");
 		getPreferences = connection.prepareStatement("SELECT NonFriendsJoin, FriendsJoin, NonFriendsInvite, FriendsInvite, ShareInfo FROM UserPrefs WHERE Username = ?");
 	}
 
 	PreparedStatement[] createUser;
+	PreparedStatement updateLastSeen;
 	@Override
-	public void createUserIfAbsent(String username) throws DatabaseException {
+	public void userLogin(String username) throws DatabaseException {
 		try {
 			for(PreparedStatement ps : createUser) {
 				ps.setString(1, username);
@@ -156,6 +145,13 @@ public class SQLEmbededDatabase implements Database {
 			if(ex.getSQLState().equals(ERR_PRIMARY_KEY))
 				return; //the user already exists
 
+			throw new DatabaseException(ex);
+		}
+		
+		try {
+			updateLastSeen.setString(1, username);
+			updateLastSeen.executeUpdate();
+		} catch(SQLException ex) {
 			throw new DatabaseException(ex);
 		}
 	}
@@ -244,7 +240,7 @@ public class SQLEmbededDatabase implements Database {
 			isFriend.setString(2, query);
 			isFriend.setString(3, username);
 			isFriend.setString(4, query);
-			return isFriend.executeQuery().first();
+			return isFriend.executeQuery().next();
 		} catch(SQLException sqle) {
 			throw new DatabaseException(sqle);
 		}
@@ -254,9 +250,9 @@ public class SQLEmbededDatabase implements Database {
 	@Override
 	public void addFriendRequest(String from, String to, String msg) throws DatabaseException {
 		try {
-			addFriendRequest.setString(1, "from");
-			addFriendRequest.setString(2, "to");
-			addFriendRequest.setString(3, "msg");
+			addFriendRequest.setString(1, from);
+			addFriendRequest.setString(2, to);
+			addFriendRequest.setString(3, msg);
 			addFriendRequest.executeUpdate();
 		} catch(SQLException ex) {
 			if(ex.getSQLState().equals(ERR_REFERENCE))
@@ -310,21 +306,6 @@ public class SQLEmbededDatabase implements Database {
 	@Override
 	public boolean closeEmptyArenas(String username) throws DatabaseException {
 		return false;
-	}
-
-	PreparedStatement acceptInvite;
-	@Override
-	public boolean acceptInvite(String arenaOwner, String username) throws DatabaseException {
-		try {
-			acceptInvite.setString(1, username);
-			acceptInvite.setString(2, arenaOwner);
-			if(acceptInvite.executeUpdate() == 0)
-				return false;
-			
-			return true;
-		} catch(SQLException ex) {
-			throw new DatabaseException(ex);
-		}
 	}
 
 	PreparedStatement allowNonFriendsToJoin;
@@ -387,21 +368,6 @@ public class SQLEmbededDatabase implements Database {
 		}
 	}
 
-	PreparedStatement addArenaInvite;
-	@Override
-	public void addArenaInvite(String owner, String username, String message) throws DatabaseException {
-		try {
-			addArenaInvite.setString(1, username);
-			addArenaInvite.setString(2, owner);
-			addArenaInvite.setString(3, message);
-		} catch(SQLException ex) {
-			if(ex.getSQLState().equals(ERR_REFERENCE))
-				throw new DatabaseException("That username is not valid");
-			
-			throw new DatabaseException(ex);
-		}
-	}
-	
 	PreparedStatement setPreferences;
 	/** preferences [nonFriendsJoin, friendsJoin, nonFriendsInvite, friendsInvite, shareInfo]*/
 	@Override
@@ -432,7 +398,7 @@ public class SQLEmbededDatabase implements Database {
 		try {
 			getPreferences.setString(1, username);
 			ResultSet result = getPreferences.executeQuery();
-			if(result.next())
+			if(!result.next())
 				throw new DatabaseException(username + " is not a valid user");
 			
 			int out = 0;

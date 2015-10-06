@@ -15,6 +15,7 @@ public class Arena {
 	static final String DISCONNECT_STRING = "User connection has closed.";
 	
 	public String owner;
+	public HashMap<String, String> invites = new HashMap<>();
 	
 	//NB: includes the owner aswell
 	public Map<Connection, Runnable> members = Collections.synchronizedMap(new HashMap<>());
@@ -37,52 +38,55 @@ public class Arena {
 		
 		owner.arena = this;
 	}
-
+	
 	public static void addToArena(String owner, Connection member) {
 		if(!member.privilageCheck())
 			return;
-		
+
 		try {
-			if(!Database.IMPL.acceptInvite(owner, member.username) && 
-					!(Database.IMPL.isFriend(owner, member.username) && Database.IMPL.allowFriendsToJoin(owner)) &&
-					!Database.IMPL.allowNonFriendsToJoin(owner)) {
-				OutboundPackets.SERVER_ERROR.send(member, 4, "You are not invited to this arena.");
+			Arena arena = ARENAS.get(owner);
+			if(arena == null) {
+				OutboundPackets.SERVER_ERROR.send(member, 3, "The user " + owner + " does not have an arena active.");
+				return;
 			}
-		
-		Arena arena = ARENAS.get(owner);
-		if(arena == null) {
-			OutboundPackets.SERVER_ERROR.send(member, 3, "The user " + owner + " does not have an arena active.");
-			return;
-		}
-		
-		if(arena.members.containsKey(member)) {
-			OutboundPackets.SERVER_ERROR.send(member, 3, "You are already part of this arena.");
-			return;
-		}
-		
-		int max = Database.IMPL.getMaxPersonCount(owner);
-		if(max <= arena.members.size()) {
-			OutboundPackets.SERVER_ERROR.send(member, 3, "This arena is full.");
-			//TODO possible infoming of the owner
-			return;
-		}
-		
-		byte[] avatarData = Database.IMPL.getAvatarData(member.username);
-		
-		for(Connection c : arena.members.keySet()) {
-			OutboundPackets.ARENA_OTHER_JOINED.send(c, member.username);
-			OutboundPackets.AVATAR_SEND.send(c, avatarData);
-			OutboundPackets.AVATAR_SEND.send(member, Database.IMPL.getAvatarData(c.username));
-		}
-		
-		Runnable hook = () -> removeFromArena(member.username, member);
-		arena.members.put(member, hook);
-		member.addCloseHook(hook);
-		
-		member.arena = arena;
-		
-		//TODO start audio stream
-		
+			
+			if(
+				!arena.acceptInvite(member.username) && 
+				!(Database.IMPL.isFriend(owner, member.username) && Database.IMPL.allowFriendsToJoin(owner)) &&
+				!Database.IMPL.allowNonFriendsToJoin(owner)
+			) {
+				OutboundPackets.SERVER_ERROR.send(member, 4, "You are not invited to this arena.");
+				return;
+			}
+
+			if(arena.members.containsKey(member)) {
+				OutboundPackets.SERVER_ERROR.send(member, 3, "You are already part of this arena.");
+				return;
+			}
+
+			int max = Database.IMPL.getMaxPersonCount(owner);
+			if(max <= arena.members.size()) {
+				OutboundPackets.SERVER_ERROR.send(member, 3, "This arena is full.");
+				//TODO possible infoming of the owner
+				return;
+			}
+
+			byte[] avatarData = Database.IMPL.getAvatarData(member.username);
+
+			for(Connection c : arena.members.keySet()) {
+				OutboundPackets.ARENA_OTHER_JOINED.send(c, member.username);
+				OutboundPackets.AVATAR_SEND.send(c, avatarData);
+				OutboundPackets.AVATAR_SEND.send(member, Database.IMPL.getAvatarData(c.username));
+			}
+
+			Runnable hook = () -> removeFromArena(member.username, member);
+			arena.members.put(member, hook);
+			member.addCloseHook(hook);
+
+			member.arena = arena;
+
+			//TODO start audio stream
+
 		} catch(DatabaseException de) {
 			OutboundPackets.SERVER_ERROR.send(member, 5, de.getMessage());
 		}
@@ -141,5 +145,13 @@ public class Arena {
 		} catch(DatabaseException de) {
 			OutboundPackets.SERVER_ERROR.send(leaver, 5, de.getMessage());
 		}
+	}
+	
+	public void makeInvite(String other, String message) {
+		invites.put(other, message);
+	}
+	
+	public boolean acceptInvite(String username) {
+		return invites.remove(username) != null;
 	}
 }

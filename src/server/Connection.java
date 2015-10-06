@@ -140,18 +140,34 @@ public class Connection {
 		}
 	}
 
-	public void login(String username, String password) {
-		// TODO Process login information
+	void successfulLogin(String username) {
 		this.username = username;
 		CONNECTIONS.put(username, this);
 		
 		try {
-		Database.IMPL.createUserIfAbsent(username);
+			Database.IMPL.userLogin(username);
+			
+			//friends
+			for(String name : Database.IMPL.friends(username))
+				OutboundPackets.FRIEND_SEND.send(this, name);
+			
+			//preferences
+			sendPreferences();
+			
+			//friendRequests
+			String[] requests = Database.IMPL.incommingFriendRequests(username);
+			for(int i = 0; i < requests.length; i += 2)
+				OutboundPackets.FRIEND_REQUEST.send(this, requests[i], requests[i + 1]);
+			
 		} catch(DatabaseException de) {
 			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
 		}
-		
+	}
+	
+	public void login(String username, String password) {
+		// TODO Process login information
 		OutboundPackets.OK.send(this);
+		successfulLogin(username);
 	}
 
 	public boolean privilageCheck() {
@@ -173,15 +189,15 @@ public class Connection {
 			return;
 		}
 
-		if(other != null)
-			OutboundPackets.FRIEND_REQUEST.send(other, this.username, msg);
-
 		try {
 			Database.IMPL.addFriendRequest(this.username, username, msg);
 		} catch(DatabaseException de) {
 			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
 			return;
 		}
+		
+		if(other != null)
+			OutboundPackets.FRIEND_REQUEST.send(other, this.username, msg);
 	}
 
 	public void friendAccept(String username) {
@@ -195,17 +211,17 @@ public class Connection {
 			return;
 		}
 
-		if(other != null) {
-			OutboundPackets.FRIEND_SEND.send(other, this.username);
-			OutboundPackets.FRIEND_SEND.send(this, username);
-		}
-
 		try {
 			Database.IMPL.acceptFriendRequest(this.username, username);
 		} catch(DatabaseException de) {
 			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
 			return;
 		}
+		
+		if(other != null)
+			OutboundPackets.FRIEND_SEND.send(other, this.username);
+		
+		OutboundPackets.FRIEND_SEND.send(this, username);
 	}
 
 	public void friendReject(String name) {
@@ -269,7 +285,7 @@ public class Connection {
 				return;
 			}
 		
-			Database.IMPL.addArenaInvite(a.owner, other, message);
+			a.makeInvite(other, message);
 		
 			Connection connection = CONNECTIONS.get(other);
 		

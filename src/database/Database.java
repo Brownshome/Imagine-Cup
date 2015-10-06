@@ -3,7 +3,7 @@ package database;
 public interface Database {
 	public Database IMPL = new SQLEmbededDatabase();
 
-	public void		createUserIfAbsent(String username) throws DatabaseException;
+	public void		userLogin(String username) throws DatabaseException;
 	
 	public boolean 	canCreateArena(String username) throws DatabaseException;
 	public int 		getMaxPersonCount(String username) throws DatabaseException;
@@ -20,13 +20,10 @@ public interface Database {
 	public byte[] 	getAvatarData(String username) throws DatabaseException;
 	public boolean 	closeEmptyArenas(String username) throws DatabaseException;
 	
-	/** returns true if there was such an invite */
-	public boolean 	acceptInvite(String arenaOwner, String username) throws DatabaseException;
 	public boolean 	allowNonFriendsToJoin(String owner) throws DatabaseException;
 	public boolean 	allowFriendsToJoin(String owner) throws DatabaseException;
 	public boolean 	allowFriendsToInvite(String username) throws DatabaseException;
 	public boolean 	allowNonFriendsToInvite(String username) throws DatabaseException;
-	public void 	addArenaInvite(String owner, String username, String message) throws DatabaseException;
 	public void 	setPreferences(String username, int preferences) throws DatabaseException;
 	public int 		getPreferences(String username) throws DatabaseException;
 }

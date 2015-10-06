@@ -95,7 +95,7 @@ public class Connection {
 			return;
 		}
 
-		System.out.println("Packet recieved " + InboundPackets.values()[id].name() + "(" + id + ")");
+		//System.out.println("Packet recieved " + InboundPackets.values()[id].name() + "(" + id + ")");
 
 		InboundPackets.values()[id].handle(in);
 	}
