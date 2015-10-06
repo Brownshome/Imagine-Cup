@@ -15,6 +15,7 @@ public class SQLEmbededDatabase implements Database {
 	static final String ERR_PRIMARY_KEY = "23505";
 	static final String ERR_REFERENCE = "23503";
 	static final String DATABASE_NOT_FOUND = "XJ004";
+	static final String DEFAULT_AVATAR_DATA = "";
 	
 	static String[] tableNames = {
 		"UserPrefs",
@@ -55,9 +56,9 @@ public class SQLEmbededDatabase implements Database {
 		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "
 		+ "DateJoined DATE DEFAULT CURRENT_DATE, "
 		+ "LastSeen DATE DEFAULT CURRENT_DATE, "
-		+ "AvatarData VARCHAR(15) FOR BIT DATA "
+		+ "AvatarData VARCHAR(255) FOR BIT DATA DEFAULT X'" + DEFAULT_AVATAR_DATA + "' "
 		+ ")",
-
+		
 		"CREATE TABLE ChatHistory "
 		+ "("
 		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "
@@ -65,7 +66,7 @@ public class SQLEmbededDatabase implements Database {
 		+ "Text VARCHAR(8192), "
 		+ "DateMade DATE DEFAULT CURRENT_DATE "
 		+ ")",
-
+		
 		"CREATE TABLE ArenaHistory "
 		+ "("
 		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "

@@ -19,13 +19,6 @@ FriendRequests
 |--------|--------|---------|-----------|----------|
 | STRING | STRING | STRING  |   DATE    | BOOLEAN  |
 
-Invites
-~~~~~~~
-
-| username | owner  | message | date | accepted |
-|----------|--------|---------|------|----------|
-|  STRING  | STRING | STRING  | DATE | BOOLEAN  |
-
 UserData
 ~~~~~~~~
 

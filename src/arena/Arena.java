@@ -51,6 +51,7 @@ public class Arena {
 			}
 			
 			if(
+				owner != member.username &&
 				!arena.acceptInvite(member.username) && 
 				!(Database.IMPL.isFriend(owner, member.username) && Database.IMPL.allowFriendsToJoin(owner)) &&
 				!Database.IMPL.allowNonFriendsToJoin(owner)
@@ -75,8 +76,8 @@ public class Arena {
 
 			for(Connection c : arena.members.keySet()) {
 				OutboundPackets.ARENA_OTHER_JOINED.send(c, member.username);
-				OutboundPackets.AVATAR_SEND.send(c, avatarData);
-				OutboundPackets.AVATAR_SEND.send(member, Database.IMPL.getAvatarData(c.username));
+				OutboundPackets.AVATAR_SEND.send(c, member.username, avatarData);
+				OutboundPackets.AVATAR_SEND.send(member, c.username, Database.IMPL.getAvatarData(c.username));
 			}
 
 			Runnable hook = () -> removeFromArena(member.username, member);
