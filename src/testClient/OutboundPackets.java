@@ -41,7 +41,8 @@ public enum OutboundPackets {
 	FILE_UPLOAD(BYTE, BYTE, INTEGER, STRING, STRING),
 	FILE_TRANSFER(STRING, BINARY),
 	
-	LOGIN(STRING, STRING);
+	LOGIN(STRING, STRING),
+	LOGIN_REGESTER(STRING, STRING);
 
 	DataType[] types;
 	OutboundPackets(DataType... types) {

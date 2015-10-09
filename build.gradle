@@ -1,4 +1,14 @@
 apply plugin: 'java'
+apply plugin: 'eclipse'
+
+repositories {
+	mavenCentral()
+}
+
+dependencies {
+	compile 'de.svenkubiak:jBCrypt:0.4'
+	compile 'org.apache.derby:derby:10.11.1.1'
+}
 
 sourceSets {
 	main {
@@ -10,20 +20,32 @@ sourceSets {
 
 task server(type: Jar, dependsOn: classes) {
 	manifest {
-        	attributes 'Main-Class': 'server.Server'
+		attributes 'Main-Class': 'server.Server'
 	}
 
 	baseName = 'server'
 	from(sourceSets.main.output)
 }
 
+task run_server(type: JavaExec) {
+	main = 'server.Server'
+	classpath = sourceSets.main.runtimeClasspath
+	standardInput = System.in
+}
+
 task client(type: Jar, dependsOn: classes) {
 	manifest {
-        	attributes 'Main-Class': 'testClient.Client'
+		attributes 'Main-Class': 'testClient.Client'
 	}
 
 	baseName = 'client'
 	from(sourceSets.main.output)
+}
+
+task run_client(type: JavaExec) {
+	main = 'testClient.Client'
+	classpath = sourceSets.main.runtimeClasspath
+	standardInput = System.in
 }
 
 task both(dependsOn: ['client', 'server'])

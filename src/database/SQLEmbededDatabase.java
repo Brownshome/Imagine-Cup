@@ -29,7 +29,8 @@ public class SQLEmbededDatabase implements Database {
 	static String[] tableCreateCommand = {
 		"CREATE TABLE LoginData "
 		+ "("
-		+ "Username VARCHAR(255) NOT NULL PRIMARY KEY "
+		+ "Username VARCHAR(255) NOT NULL PRIMARY KEY, "
+		+ "Hash VARCHAR(255) NOT NULL"
 		+ ")",
 
 		"CREATE TABLE UserPrefs "
@@ -112,7 +113,7 @@ public class SQLEmbededDatabase implements Database {
 
 	void createPreparedStatements() throws SQLException {
 		createUser = new PreparedStatement[] {
-				connection.prepareStatement("INSERT INTO LoginData (Username) VALUES ?"),
+				connection.prepareStatement("INSERT INTO LoginData (Username, Hash) VALUES (?, ?)"),
 				connection.prepareStatement("INSERT INTO UserPrefs (Username) VALUES ?"),
 				connection.prepareStatement("INSERT INTO UserData (Username) VALUES ?")
 		};
@@ -132,6 +133,7 @@ public class SQLEmbededDatabase implements Database {
 		setPreferences = connection.prepareStatement("UPDATE UserPrefs SET NonFriendsJoin = ?, FriendsJoin = ?, NonFriendsInvite = ?, FriendsInvite = ?, ShareInfo = ? WHERE Username = ?");
 		getPreferences = connection.prepareStatement("SELECT NonFriendsJoin, FriendsJoin, NonFriendsInvite, FriendsInvite, ShareInfo FROM UserPrefs WHERE Username = ?");
 		addChatMessage = connection.prepareStatement("INSERT INTO ChatHistory (UserTo, UserFrom, Text) VALUES (?, ?, ?)");
+		getSaltedHash = connection.prepareStatement("SELECT Hash FROM LoginData WHERE Username = ?");
 	}
 
 	PreparedStatement[] createUser;
@@ -139,20 +141,9 @@ public class SQLEmbededDatabase implements Database {
 	@Override
 	public void userLogin(String username) throws DatabaseException {
 		try {
-			for(PreparedStatement ps : createUser) {
-				ps.setString(1, username);
-				ps.executeUpdate();
-			}
-		} catch(SQLException ex) {
-			if(ex.getSQLState().equals(ERR_PRIMARY_KEY))
-				return; //the user already exists
-
-			throw new DatabaseException(ex);
-		}
-		
-		try {
 			updateLastSeen.setString(1, username);
-			updateLastSeen.executeUpdate();
+			if(updateLastSeen.executeUpdate() == 0)
+				throw new DatabaseException("That user does not exist.");
 		} catch(SQLException ex) {
 			throw new DatabaseException(ex);
 		}
@@ -430,6 +421,42 @@ public class SQLEmbededDatabase implements Database {
 			if(ex.getSQLState().equals(ERR_REFERENCE))
 				throw new DatabaseException("That user is not valid.");
 			throw new DatabaseException(ex);
+		}
+	}
+
+	@Override
+	public void regesterUser(String username, String hash) throws DatabaseException {
+		try {
+			createUser[0].setString(1, username);
+			createUser[0].setString(2, hash);
+			createUser[0].executeUpdate();
+			
+			createUser[1].setString(1, username);
+			createUser[1].executeUpdate();
+			
+			createUser[2].setString(1, username);
+			createUser[2].executeUpdate();
+			
+		} catch(SQLException ex) {
+			if(ex.getSQLState().equals(ERR_PRIMARY_KEY))
+				throw new DatabaseException("That user already exists");
+
+			throw new DatabaseException(ex);
+		}
+	}
+
+	PreparedStatement getSaltedHash;
+	@Override
+	public String getSaltedHash(String username) {
+		try {
+			getSaltedHash.setString(1, username);
+			ResultSet result = getSaltedHash.executeQuery();
+			if(!result.next())
+				throw new DatabaseException(username + " does not exist.");
+			
+			return result.getString(1);
+		} catch(SQLException sqle) {
+			throw new DatabaseException(sqle);
 		}
 	}
 }
