@@ -16,6 +16,7 @@ import java.util.concurrent.Executors;
 import packets.InboundPackets;
 import packets.OutboundPackets;
 import packets.PacketException;
+import security.Login;
 import arena.Arena;
 import database.Database;
 import database.DatabaseException;
@@ -80,6 +81,8 @@ public class Connection {
 						decodePacket(bytes);
 					} catch (PacketException pde) {
 						System.out.println(pde.getMessage());
+					} catch (DatabaseException de) {
+						OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -118,7 +121,7 @@ public class Connection {
 		closeList.forEach(Runnable::run);
 	}
 
-	void decodePacket(byte[] byteArray) throws PacketException {
+	void decodePacket(byte[] byteArray) throws PacketException, DatabaseException {
 		ByteArrayInputStream in = new ByteArrayInputStream(FRAMER.decode(byteArray));
 
 		int id = in.read();
@@ -140,34 +143,35 @@ public class Connection {
 		}
 	}
 
-	void successfulLogin(String username) {
-		this.username = username;
+	void onLoginSuccess() {
 		CONNECTIONS.put(username, this);
+		Database.IMPL.userLogin(username);
 		
-		try {
-			Database.IMPL.userLogin(username);
-			
-			//friends
-			for(String name : Database.IMPL.friends(username))
-				OutboundPackets.FRIEND_SEND.send(this, name);
-			
-			//preferences
-			sendPreferences();
-			
-			//friendRequests
-			String[] requests = Database.IMPL.incommingFriendRequests(username);
-			for(int i = 0; i < requests.length; i += 2)
-				OutboundPackets.FRIEND_REQUEST.send(this, requests[i], requests[i + 1]);
-			
-		} catch(DatabaseException de) {
-			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
-		}
+		//friends
+		for(String name : Database.IMPL.friends(username))
+			OutboundPackets.FRIEND_SEND.send(this, name);
+		
+		//preferences
+		sendPreferences();
+		
+		//friendRequests
+		String[] requests = Database.IMPL.incommingFriendRequests(username);
+		for(int i = 0; i < requests.length; i += 2)
+			OutboundPackets.FRIEND_REQUEST.send(this, requests[i], requests[i + 1]);
 	}
 	
 	public void login(String username, String password) {
-		// TODO Process login information
-		OutboundPackets.OK.send(this);
-		successfulLogin(username);
+		if (Login.passwordCorrect(password, Login.getPassword(username))) {
+			this.username = username;
+			onLoginSuccess();
+			OutboundPackets.LOGIN_OK.send(this);
+		} else {
+			OutboundPackets.SERVER_ERROR.send(this, 5, "Invalid username or password");
+		}
+	}
+
+	public void register(String username, String password) {
+		Login.registerUser(username, password);
 	}
 
 	public boolean privilageCheck() {
@@ -189,12 +193,7 @@ public class Connection {
 			return;
 		}
 
-		try {
-			Database.IMPL.addFriendRequest(this.username, username, msg);
-		} catch(DatabaseException de) {
-			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
-			return;
-		}
+		Database.IMPL.addFriendRequest(this.username, username, msg);
 		
 		if(other != null)
 			OutboundPackets.FRIEND_REQUEST.send(other, this.username, msg);
@@ -211,12 +210,7 @@ public class Connection {
 			return;
 		}
 
-		try {
-			Database.IMPL.acceptFriendRequest(this.username, username);
-		} catch(DatabaseException de) {
-			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
-			return;
-		}
+		Database.IMPL.acceptFriendRequest(this.username, username);
 		
 		if(other != null)
 			OutboundPackets.FRIEND_SEND.send(other, this.username);
@@ -235,12 +229,7 @@ public class Connection {
 			return;
 		}
 
-		try {
-			Database.IMPL.removeFriendRequest(name, username);
-		} catch (DatabaseException e) {
-			OutboundPackets.SERVER_ERROR.send(this, 5, e.getMessage());
-			return;
-		}
+		Database.IMPL.removeFriendRequest(name, username);
 	}
 
 	public void handleFileUpload(byte fileType, byte connectionType, int size, String name, String URL) {
@@ -277,49 +266,33 @@ public class Connection {
 		if(a == null)
 			a = arena;
 		
-		try {
-			if(!a.owner.equals(username) && 
-			!Database.IMPL.allowNonFriendsToInvite(username) && 
-			!(Database.IMPL.allowFriendsToInvite(username) && Database.IMPL.isFriend(a.owner, username))) {
-				OutboundPackets.SERVER_ERROR.send(this, 4, "You are not allowed to invite people to this arena.");
-				return;
-			}
-		
-			a.makeInvite(other, message);
-		
-			Connection connection = CONNECTIONS.get(other);
-		
-			if(connection != null) {
-				OutboundPackets.ARENA_INVITE.send(connection, a.owner, message);
-			}
-		} catch(DatabaseException de) {
-			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
+		if(!a.owner.equals(username) && 
+		!Database.IMPL.allowNonFriendsToInvite(username) && 
+		!(Database.IMPL.allowFriendsToInvite(username) && Database.IMPL.isFriend(a.owner, username))) {
+			OutboundPackets.SERVER_ERROR.send(this, 4, "You are not allowed to invite people to this arena.");
 			return;
 		}
+		
+		a.makeInvite(other, message);
+		
+		Connection connection = CONNECTIONS.get(other);
+		
+		if(connection != null)
+			OutboundPackets.ARENA_INVITE.send(connection, a.owner, message);
 	}
 
 	public void setPreferences(int preferences) {
 		if(!privilageCheck())
 			return;
 		
-		try {
-			Database.IMPL.setPreferences(username, preferences);
-		} catch(DatabaseException de) {
-			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
-			return;
-		}
+		Database.IMPL.setPreferences(username, preferences);
 	}
 	
 	public void sendPreferences() {
 		if(!privilageCheck())
 			return;
 		
-		try {
-			OutboundPackets.PREFERENCES_SEND.send(this, Database.IMPL.getPreferences(username));
-		} catch(DatabaseException de) {
-			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
-			return;
-		}
+		OutboundPackets.PREFERENCES_SEND.send(this, Database.IMPL.getPreferences(username));
 	}
 
 	public void annotateText(float x, float y, float z, String string) {
@@ -336,12 +309,7 @@ public class Connection {
 		if(!privilageCheck())
 			return;
 		
-		try {
-			Database.IMPL.addChatMessage(username, to, text);
-		} catch(DatabaseException de) {
-			OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
-			return;
-		}
+		Database.IMPL.addChatMessage(username, to, text);
 		
 		Connection c = CONNECTIONS.get(to);
 		

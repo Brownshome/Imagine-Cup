@@ -56,3 +56,4 @@ $RECYCLE.BIN/
 .classpath
 *.project
 derby.log
+.settings/org.eclipse.jdt.core.prefs

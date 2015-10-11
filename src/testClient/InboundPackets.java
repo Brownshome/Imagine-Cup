@@ -43,7 +43,7 @@ public enum InboundPackets {
 
 	HISTORY_SEND(BYTE, BINARY),
 
-	OK(),
+	LOGIN_OK(),
 	
 	PREFERENCES_SEND(INTEGER);
 

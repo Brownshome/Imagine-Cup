@@ -4,6 +4,8 @@ public interface Database {
 	public Database IMPL = new SQLEmbededDatabase();
 
 	public void		userLogin(String username) throws DatabaseException;
+	public void		regesterUser(String username, String hash) throws DatabaseException;
+	public String 	getSaltedHash(String username);
 	
 	public boolean 	canCreateArena(String username) throws DatabaseException;
 	public int 		getMaxPersonCount(String username) throws DatabaseException;

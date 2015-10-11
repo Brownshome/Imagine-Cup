@@ -128,7 +128,7 @@ HISTORY_SEND
 	byte	eventType
 	byte[]	data
 
-OK
+LOGIN_OK
 	no data
 
 PREFERENCES_SEND
@@ -230,5 +230,10 @@ FILE_TRANSFER
 		2: URL stream (connectionData contains the URL)
 
 LOGIN
-	string username
-	string password
+	string	username
+	string	password
+	
+LOGIN_REGESTER
+	string	username
+	string	password
+	
