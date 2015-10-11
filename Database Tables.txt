@@ -8,8 +8,8 @@ UserPrefs
 LoginData
 ~~~~~~~~~
 
-| Username | Password |
-|----------|----------|  -> Andrew, let me know when you finalize this
+| Username |   Hash   |
+|----------|----------|
 |  STRING  |  STRING  |
 
 FriendRequests
