@@ -9,11 +9,12 @@ import static packets.DataType.STRING;
 
 import java.io.ByteArrayInputStream;
 
-import arena.Arena;
 import server.Connection;
+import arena.Arena;
+import database.DatabaseException;
 
 public enum InboundPackets {
-	HISTORY_GET(null, INTEGER),
+	HISTORY_GET((c, o) -> c.sendHistory((int) o[0], (int) o[1]), INTEGER, INTEGER),
 
 	FEATURES_GET(null),
 
@@ -36,7 +37,7 @@ public enum InboundPackets {
 
 	NEWS_FEED_ADD(null, BINARY),
 
-	AVATAR_SEND(null, BINARY),
+	AVATAR_SEND((c, o) -> c.setAvatar((byte[]) o[0]), BINARY),
 
 	ANNOTATE_TEXT((c, o) -> c.annotateText((float) o[0], (float) o[1], (float) o[2], (String) o[3]), FLOAT, FLOAT, FLOAT, STRING),
 	
@@ -54,7 +55,7 @@ public enum InboundPackets {
 		this.handler = handler;
 	}
 
-	public void handle(Connection connection, ByteArrayInputStream array) {
+	public void handle(Connection connection, ByteArrayInputStream array) throws DatabaseException {
 		Object[] objects = new Object[types.length];
 
 		for(int i = 0; i < types.length; i++) {

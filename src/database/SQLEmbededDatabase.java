@@ -1,12 +1,18 @@
 package database;
 
 import java.sql.Connection;
+import java.util.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.List;
+
+import util.Doublet;
+import util.Tripplet;
 
 public class SQLEmbededDatabase implements Database {
 	Connection connection;
@@ -48,31 +54,33 @@ public class SQLEmbededDatabase implements Database {
 		+ "UserFrom VARCHAR(255) NOT NULL REFERENCES LoginData, "
 		+ "UserTo VARCHAR(255) NOT NULL REFERENCES LoginData, "
 		+ "Message VARCHAR(255), "
-		+ "DateMade DATE DEFAULT CURRENT_DATE, "
+		+ "DateMade TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+		+ "DateAccepted TIMESTAMP, "
 		+ "Accepted BOOLEAN DEFAULT FALSE "
 		+ ")",
 		
 		"CREATE TABLE UserData "
 		+ "("
 		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "DateJoined DATE DEFAULT CURRENT_DATE, "
-		+ "LastSeen DATE DEFAULT CURRENT_DATE, "
-		+ "AvatarData VARCHAR(255) FOR BIT DATA DEFAULT X'" + DEFAULT_AVATAR_DATA + "' "
+		+ "DateJoined TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+		+ "LastSeen TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+		+ "AvatarData VARCHAR (64) FOR BIT DATA DEFAULT X'" + DEFAULT_AVATAR_DATA + "' "
 		+ ")",
 		
 		"CREATE TABLE ChatHistory "
 		+ "("
 		+ "UserFrom VARCHAR(255) NOT NULL REFERENCES LoginData, "
 		+ "UserTo VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "Text VARCHAR(8192), "
+		+ "Text VARCHAR(512), "
 		+ "DateMade TIMESTAMP DEFAULT CURRENT_TIMESTAMP "
 		+ ")",
 		
 		"CREATE TABLE ArenaHistory "
 		+ "("
 		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "Event VARCHAR(64) CHECK (Event IN ('Join', 'Leave')), "
-		+ "DateMade DATE DEFAULT CURRENT_DATE "
+		+ "Event VARCHAR(64) CHECK (Event IN ( " + getEnumList() + " )), "
+		+ "Data VARCHAR(255), "
+		+ "DateMade TIMESTAMP DEFAULT CURRENT_TIMESTAMP "
 		+ ")"
 	};
 
@@ -98,6 +106,15 @@ public class SQLEmbededDatabase implements Database {
 		}
 	}
 
+	private static String getEnumList() {
+		String string = "'" + HistoryEvent.values()[0] + "'";
+		for(int i = 1; i < HistoryEvent.values().length; i++) {
+			string += ", '" + HistoryEvent.values()[i] + "'";
+		}
+		
+		return string;
+	}
+
 	void createTables() throws SQLException {
 		Statement statement = connection.createStatement();
 
@@ -117,13 +134,13 @@ public class SQLEmbededDatabase implements Database {
 				connection.prepareStatement("INSERT INTO UserPrefs (Username) VALUES ?"),
 				connection.prepareStatement("INSERT INTO UserData (Username) VALUES ?")
 		};
-		updateLastSeen = connection.prepareStatement("UPDATE UserData SET LastSeen = CURRENT_DATE WHERE Username = ?");
+		updateLastSeen = connection.prepareStatement("UPDATE UserData SET LastSeen = CURRENT_TIMESTAMP WHERE Username = ?");
 		incommingFriendRequests = connection.prepareStatement("SELECT UserFrom, Message FROM FriendRequests WHERE UserTo = ? AND NOT Accepted");
 		outgoingFriendRequests = connection.prepareStatement("SELECT UserTo, Message FROM FriendRequests WHERE UserFrom = ? AND NOT Accepted");
 		friends = connection.prepareStatement("SELECT UserTo, UserFrom FROM FriendRequests WHERE (UserTo = ? OR UserFrom = ?) AND Accepted");
 		isFriend = connection.prepareStatement("SELECT UserTo, UserFrom FROM FriendRequests WHERE ((UserTo = ? AND UserFrom = ?) OR (UserFrom = ? AND UserTo = ?)) AND Accepted");
 		addFriendRequest = connection.prepareStatement("INSERT INTO FriendRequests (UserFrom, UserTo, Message) VALUES (?, ?, ?)");
-		acceptFriendRequest = connection.prepareStatement("UPDATE FriendRequests SET Accepted = TRUE WHERE UserFrom = ? AND UserTo = ?");
+		acceptFriendRequest = connection.prepareStatement("UPDATE FriendRequests SET Accepted = TRUE, DateAccepted = CURRENT_TIMESTAMP WHERE UserFrom = ? AND UserTo = ?");
 		removeFriendRequest = connection.prepareStatement("DELETE FROM FriendRequests WHERE UserTo = ? AND UserFrom = ?");
 		getAvatarData = connection.prepareStatement("SELECT AvatarData FROM UserData WHERE Username = ?");
 		allowNonFriendsToJoin = connection.prepareStatement("SELECT NonFriendsJoin FROM UserPrefs WHERE Username = ?");
@@ -134,6 +151,25 @@ public class SQLEmbededDatabase implements Database {
 		getPreferences = connection.prepareStatement("SELECT NonFriendsJoin, FriendsJoin, NonFriendsInvite, FriendsInvite, ShareInfo FROM UserPrefs WHERE Username = ?");
 		addChatMessage = connection.prepareStatement("INSERT INTO ChatHistory (UserTo, UserFrom, Text) VALUES (?, ?, ?)");
 		getSaltedHash = connection.prepareStatement("SELECT Hash FROM LoginData WHERE Username = ?");
+		addArenaEvent = connection.prepareStatement("INSERT INTO ArenaHistory (Username, Event, Data) VALUES (?, ?, ?)");
+		setAvatarData = connection.prepareStatement("UPDATE UserData SET AvatarData = ? WHERE Username = ?");
+		getHistory = connection.prepareStatement(
+				"SELECT * FROM ( " +
+				"SELECT Event, DateMade, Data FROM ArenaHistory WHERE Username = ? " +
+				"UNION " +
+				"SELECT 'CHAT_FROM', DateMade, UserFrom || ': ' || Text FROM CHATHISTORY WHERE UserTo = ? " +
+				"UNION " +
+				"SELECT 'CHAT_TO', DateMade, UserTo || ': ' || Text FROM CHATHISTORY WHERE UserFrom = ? " +
+				"UNION " +
+				"SELECT 'REQUEST_TO_MADE', DateMade, UserTo || ': ' || Message FROM FRIENDREQUESTS WHERE UserFrom = ? " +
+				"UNION " +
+				"SELECT 'REQUEST_TO_ACCEPTED', DateAccepted, UserTo || ': ' || Message FROM FRIENDREQUESTS WHERE UserFrom = ? AND Accepted = TRUE " +
+				"UNION " +
+				"SELECT 'REQUEST_FROM_MADE', DateMade, UserFrom || ': ' || Message FROM FRIENDREQUESTS WHERE UserTo = ? " +
+				"UNION " +
+				"SELECT 'REQUEST_TO_ACCEPTED', DateAccepted, UserFrom || ': ' || Message FROM FRIENDREQUESTS WHERE UserTo = ? AND Accepted = TRUE " +
+				") AS tmp ORDER BY 2 DESC OFFSET ? ROWS FETCH FIRST ? ROWS ONLY"
+		);
 	}
 
 	PreparedStatement[] createUser;
@@ -162,21 +198,20 @@ public class SQLEmbededDatabase implements Database {
 
 	PreparedStatement incommingFriendRequests;
 	@Override
-	public String[] incommingFriendRequests(String username) throws DatabaseException {
+	public List<Doublet<String, String>> incommingFriendRequests(String username) throws DatabaseException {
 		try {
 			incommingFriendRequests.setString(1, username);
 			ResultSet result = incommingFriendRequests.executeQuery();
 
-			ArrayList<String> requests = new ArrayList<>();
+			List<Doublet<String, String>> requests = new ArrayList<>();
 			while(result.next()) {
 				String from = result.getString(1);
 				String message = result.getString(2);
 
-				requests.add(from);
-				requests.add(message);
+				requests.add(new Doublet<>(from, message));
 			}
 
-			return requests.toArray(new String[0]);
+			return requests;
 		} catch(SQLException sqle) {
 			throw new DatabaseException(sqle);
 		}
@@ -184,21 +219,20 @@ public class SQLEmbededDatabase implements Database {
 
 	PreparedStatement outgoingFriendRequests;
 	@Override
-	public String[] outgoingFriendRequests(String username) throws DatabaseException {
+	public List<Doublet<String, String>> outgoingFriendRequests(String username) throws DatabaseException {
 		try {
 			outgoingFriendRequests.setString(1, username);
 			ResultSet result = outgoingFriendRequests.executeQuery();
 
-			ArrayList<String> requests = new ArrayList<>();
+			List<Doublet<String, String>> requests = new ArrayList<>();
 			while(result.next()) {
 				String to = result.getString(1);
 				String message = result.getString(2);
 
-				requests.add(to);
-				requests.add(message);
+				requests.add(new Doublet<>(to, message));
 			}
 
-			return requests.toArray(new String[0]);
+			return requests;
 		} catch(SQLException sqle) {
 			throw new DatabaseException(sqle);
 		}
@@ -206,12 +240,12 @@ public class SQLEmbededDatabase implements Database {
 
 	PreparedStatement friends;
 	@Override
-	public String[] friends(String username) throws DatabaseException {
+	public List<String> friends(String username) throws DatabaseException {
 		try {
 			friends.setString(1, username);
 			friends.setString(2, username);
 			ResultSet result = friends.executeQuery();
-			ArrayList<String> list = new ArrayList<>();
+			List<String> list = new ArrayList<>();
 			while(result.next()) {
 				String from = result.getString(2);
 				String to = result.getString(1);
@@ -219,7 +253,7 @@ public class SQLEmbededDatabase implements Database {
 				list.add(from.equals(username) ? to : from);
 			}
 
-			return list.toArray(new String[0]);
+			return list;
 		} catch(SQLException sqle) {
 			throw new DatabaseException(sqle);
 		}
@@ -377,6 +411,7 @@ public class SQLEmbededDatabase implements Database {
 			setPreferences.setBoolean(3, nonFriendsInvite);
 			setPreferences.setBoolean(4, friendsInvite);
 			setPreferences.setBoolean(5, shareInfo);
+			setPreferences.setString(6, username);
 			
 			if(setPreferences.executeUpdate() == 0)
 				throw new DatabaseException(username + " is not a user");
@@ -447,7 +482,7 @@ public class SQLEmbededDatabase implements Database {
 
 	PreparedStatement getSaltedHash;
 	@Override
-	public String getSaltedHash(String username) {
+	public String getSaltedHash(String username) throws DatabaseException {
 		try {
 			getSaltedHash.setString(1, username);
 			ResultSet result = getSaltedHash.executeQuery();
@@ -455,6 +490,72 @@ public class SQLEmbededDatabase implements Database {
 				throw new DatabaseException(username + " does not exist.");
 			
 			return result.getString(1);
+		} catch(SQLException sqle) {
+			throw new DatabaseException(sqle);
+		}
+	}
+	
+	PreparedStatement addArenaEvent;
+	@Override
+	public void addArenaEvent(String username, HistoryEvent event, String data) throws DatabaseException {
+		try {
+			addArenaEvent.setString(1, username);
+			addArenaEvent.setString(2, event.name());
+			addArenaEvent.setString(3, data);
+			
+			addArenaEvent.executeUpdate();
+			
+		} catch(SQLException sqle) {
+			if(sqle.getSQLState().equals(ERR_REFERENCE))
+				throw new DatabaseException(username + " is not a valid user.");
+			
+			throw new DatabaseException(sqle);
+		}
+	}
+
+	PreparedStatement setAvatarData;
+	@Override
+	public void setAvatarData(String username, byte[] binary) throws DatabaseException {
+		try {
+			setAvatarData.setBytes(1, binary);
+			setAvatarData.setString(2, username);
+			if(setAvatarData.executeUpdate() == 0)
+				throw new DatabaseException(username + " is not a valid user.");
+		} catch(SQLException sqle) {
+			throw new DatabaseException(sqle);
+		}
+	}
+
+	PreparedStatement getHistory;
+	@Override
+	public List<Tripplet<HistoryEvent, Date, String>> getHistory(String username, int from, int to) throws DatabaseException {
+		if(from < 0 || to < 0 || to < from)
+			throw new DatabaseException("Invalid range: " + from + " to " + to + ".");
+		
+		try {
+			getHistory.setString(1, username);
+			getHistory.setString(2, username);
+			getHistory.setString(3, username);
+			getHistory.setString(4, username);
+			getHistory.setString(5, username);
+			getHistory.setString(6, username);
+			getHistory.setString(7, username);
+
+			getHistory.setInt(8, from);
+			getHistory.setInt(9, to - from);
+			
+			ResultSet result = getHistory.executeQuery();
+			
+			List<Tripplet<HistoryEvent, Date, String>> list = new ArrayList<>();
+			while(result.next()) {
+				HistoryEvent event = HistoryEvent.valueOf(result.getString(1));
+				Timestamp date = result.getTimestamp(2);
+				String detail = result.getString(3);
+				
+				list.add(new Tripplet<>(event, date, detail));
+			}
+			
+			return list;
 		} catch(SQLException sqle) {
 			throw new DatabaseException(sqle);
 		}

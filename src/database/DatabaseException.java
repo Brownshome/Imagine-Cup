@@ -4,7 +4,7 @@ import java.sql.SQLException;
 
 
 @SuppressWarnings("serial")
-public class DatabaseException extends RuntimeException {
+public class DatabaseException extends Exception {
 
 	public DatabaseException(String message) {
 		super(message);

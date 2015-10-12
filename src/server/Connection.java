@@ -1,3 +1,4 @@
+
 package server;
 
 import java.io.ByteArrayInputStream;
@@ -6,8 +7,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutorService;
@@ -17,9 +20,13 @@ import packets.InboundPackets;
 import packets.OutboundPackets;
 import packets.PacketException;
 import security.Login;
+import util.Doublet;
+import util.RunnableWithDatabaseException;
+import util.Tripplet;
 import arena.Arena;
 import database.Database;
 import database.DatabaseException;
+import database.HistoryEvent;
 import framing.COBS;
 import framing.FramingAlgorithm;
 
@@ -46,7 +53,7 @@ public class Connection {
 	InputStream in;
 	OutputStream out;
 	
-	Set<Runnable> closeList = new HashSet<>();
+	Set<RunnableWithDatabaseException> closeList = new HashSet<>();
 	
 	Connection(Socket socket) {
 		this.socket = socket;
@@ -100,11 +107,11 @@ public class Connection {
 		}
 	}
 
-	public synchronized void addCloseHook(Runnable r) {
+	public synchronized void addCloseHook(RunnableWithDatabaseException r) {
 		closeList.add(r);
 	}
 
-	public synchronized void removeCloseHook(Runnable r) {
+	public synchronized void removeCloseHook(RunnableWithDatabaseException r) {
 		closeList.remove(r);
 	}
 	
@@ -118,7 +125,13 @@ public class Connection {
 		if(username != null)
 			CONNECTIONS.remove(username);
 
-		closeList.forEach(Runnable::run);
+		for(RunnableWithDatabaseException r : closeList) {
+			try {
+				r.run();
+			} catch(DatabaseException de) {
+				OutboundPackets.SERVER_ERROR.send(this, 5, de.getMessage());
+			}
+		}
 	}
 
 	void decodePacket(byte[] byteArray) throws PacketException, DatabaseException {
@@ -143,7 +156,7 @@ public class Connection {
 		}
 	}
 
-	void onLoginSuccess() {
+	void onLoginSuccess() throws DatabaseException {
 		CONNECTIONS.put(username, this);
 		Database.IMPL.userLogin(username);
 		
@@ -153,14 +166,15 @@ public class Connection {
 		
 		//preferences
 		sendPreferences();
+		OutboundPackets.AVATAR_SEND.send(this, username, Database.IMPL.getAvatarData(username));
 		
 		//friendRequests
-		String[] requests = Database.IMPL.incommingFriendRequests(username);
-		for(int i = 0; i < requests.length; i += 2)
-			OutboundPackets.FRIEND_REQUEST.send(this, requests[i], requests[i + 1]);
+		List<Doublet<String, String>> requests = Database.IMPL.incommingFriendRequests(username);
+		for(Doublet<String, String> request : requests)
+			OutboundPackets.FRIEND_REQUEST.send(this, request.a, request.b);
 	}
 	
-	public void login(String username, String password) {
+	public void login(String username, String password) throws DatabaseException {
 		if (Login.passwordCorrect(password, Login.getPassword(username))) {
 			this.username = username;
 			onLoginSuccess();
@@ -170,7 +184,7 @@ public class Connection {
 		}
 	}
 
-	public void register(String username, String password) {
+	public void register(String username, String password) throws DatabaseException {
 		Login.registerUser(username, password);
 	}
 
@@ -182,7 +196,7 @@ public class Connection {
 		return false;
 	}
 
-	public void friendRequest(String username, String msg) {
+	public void friendRequest(String username, String msg) throws DatabaseException {
 		Connection other = CONNECTIONS.get(username);
 
 		if(!privilageCheck())
@@ -199,7 +213,7 @@ public class Connection {
 			OutboundPackets.FRIEND_REQUEST.send(other, this.username, msg);
 	}
 
-	public void friendAccept(String username) {
+	public void friendAccept(String username) throws DatabaseException {
 		Connection other = CONNECTIONS.get(username);
 
 		if(!privilageCheck())
@@ -218,7 +232,7 @@ public class Connection {
 		OutboundPackets.FRIEND_SEND.send(this, username);
 	}
 
-	public void friendReject(String name) {
+	public void friendReject(String name) throws DatabaseException {
 		Connection other = CONNECTIONS.get(name);
 
 		if(!privilageCheck())
@@ -253,7 +267,7 @@ public class Connection {
 		
 	}
 
-	public void inviteToArena(String other, String message) {
+	public void inviteToArena(String other, String message) throws DatabaseException {
 		if(!privilageCheck())
 			return;
 		
@@ -281,14 +295,14 @@ public class Connection {
 			OutboundPackets.ARENA_INVITE.send(connection, a.owner, message);
 	}
 
-	public void setPreferences(int preferences) {
+	public void setPreferences(int preferences) throws DatabaseException {
 		if(!privilageCheck())
 			return;
 		
 		Database.IMPL.setPreferences(username, preferences);
 	}
 	
-	public void sendPreferences() {
+	public void sendPreferences() throws DatabaseException {
 		if(!privilageCheck())
 			return;
 		
@@ -305,7 +319,7 @@ public class Connection {
 			OutboundPackets.ANNOTATE_TEXT.send(c, username, x, y, z, string);
 	}
 
-	public void sendText(byte type, String text, String to) {
+	public void sendText(byte type, String text, String to) throws DatabaseException {
 		if(!privilageCheck())
 			return;
 		
@@ -315,5 +329,24 @@ public class Connection {
 		
 		if(c != null)
 			OutboundPackets.TEXT_SEND.send(c, type, text, username);
+	}
+
+	public void setAvatar(byte[] data) throws DatabaseException {
+		if(!privilageCheck())
+			return;
+		
+		Database.IMPL.setAvatarData(username, data);
+	}
+
+	public void sendHistory(int from, int to) throws DatabaseException {
+		if(!privilageCheck())
+			return;
+
+		for(Tripplet<HistoryEvent, Date, String> t : Database.IMPL.getHistory(username, from, to)) {
+			long time = t.b.getTime();
+			int high = (int) (time >> 32);
+			int low = (int) time;
+			OutboundPackets.HISTORY_SEND.send(this, (byte) t.a.ordinal(), high, low, t.c);
+		}
 	}
 }

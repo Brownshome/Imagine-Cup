@@ -11,7 +11,7 @@ import java.io.ByteArrayOutputStream;
 import packets.DataType;
 
 public enum OutboundPackets {
-	HISTORY_GET(INTEGER),
+	HISTORY_GET(INTEGER, INTEGER),
 
 	FEATURES_GET(),
 

@@ -7,8 +7,10 @@ import java.util.Map.Entry;
 
 import packets.OutboundPackets;
 import server.Connection;
+import util.RunnableWithDatabaseException;
 import database.Database;
 import database.DatabaseException;
+import database.HistoryEvent;
 
 public class Arena {
 	public static final Map<String, Arena> ARENAS = Collections.synchronizedMap(new HashMap<>());
@@ -18,22 +20,24 @@ public class Arena {
 	public HashMap<String, String> invites = new HashMap<>();
 	
 	//NB: includes the owner aswell
-	public Map<Connection, Runnable> members = Collections.synchronizedMap(new HashMap<>());
+	public Map<Connection, RunnableWithDatabaseException> members = Collections.synchronizedMap(new HashMap<>());
 	
-	public Arena(Connection owner) {
+	public Arena(Connection owner) throws DatabaseException {
 		if(!owner.privilageCheck())
 			return;
 		
 		this.owner = owner.username;
 		
-		Runnable hook = () -> removeFromArena(DISCONNECT_STRING, owner);
+		RunnableWithDatabaseException hook = () -> removeFromArena(DISCONNECT_STRING, owner);
 		members.put(owner, hook);
 		owner.addCloseHook(hook);
 		
 		if(ARENAS.containsKey(owner.username)) {
 			OutboundPackets.SERVER_ERROR.send(owner, 3, "You can only have one arena active at a time.");
+			return;
 		} else {
 			ARENAS.put(owner.username, this);
+			Database.IMPL.addArenaEvent(owner.username, HistoryEvent.CREATE, "You created the arena.");
 		}
 		
 		owner.arena = this;
@@ -51,7 +55,7 @@ public class Arena {
 			}
 			
 			if(
-				owner != member.username &&
+				!owner.equals(member.username) &&
 				!arena.acceptInvite(member.username) && 
 				!(Database.IMPL.isFriend(owner, member.username) && Database.IMPL.allowFriendsToJoin(owner)) &&
 				!Database.IMPL.allowNonFriendsToJoin(owner)
@@ -74,13 +78,16 @@ public class Arena {
 
 			byte[] avatarData = Database.IMPL.getAvatarData(member.username);
 
+			Database.IMPL.addArenaEvent(member.username, HistoryEvent.JOIN, "You joined the arena.");
+			
 			for(Connection c : arena.members.keySet()) {
 				OutboundPackets.ARENA_OTHER_JOINED.send(c, member.username);
 				OutboundPackets.AVATAR_SEND.send(c, member.username, avatarData);
 				OutboundPackets.AVATAR_SEND.send(member, c.username, Database.IMPL.getAvatarData(c.username));
+				Database.IMPL.addArenaEvent(c.username, HistoryEvent.JOIN, "User " + member.username + " joined.");
 			}
 
-			Runnable hook = () -> removeFromArena(member.username, member);
+			RunnableWithDatabaseException hook = () -> removeFromArena(member.username, member);
 			arena.members.put(member, hook);
 			member.addCloseHook(hook);
 
@@ -93,7 +100,7 @@ public class Arena {
 		}
 	}
 
-	public static void closeArena(String reason, Connection owner) {
+	public static void closeArena(String reason, Connection owner) throws DatabaseException {
 		if(!owner.privilageCheck())
 			return;
 		
@@ -106,9 +113,10 @@ public class Arena {
 		
 		arena.members.remove(owner);
 		
-		for(Entry<Connection, Runnable> e : arena.members.entrySet()) {
+		Database.IMPL.addArenaEvent(owner.username, HistoryEvent.CLOSE, "You closed your arena.");
+		for(Entry<Connection, RunnableWithDatabaseException> e : arena.members.entrySet()) {
 			OutboundPackets.ARENA_CLOSED.send(e.getKey(), reason);
-			
+			Database.IMPL.addArenaEvent(e.getKey().username, HistoryEvent.CLOSE, owner.username + " closed the arena.");
 			e.getKey().arena = null;			
 		}
 		
@@ -117,7 +125,7 @@ public class Arena {
 		//TODO close audio stream
 	}
 	
-	public static void removeFromArena(String reason, Connection leaver) {
+	public static void removeFromArena(String reason, Connection leaver) throws DatabaseException {
 		if(!leaver.privilageCheck())
 			return;
 		
@@ -132,17 +140,19 @@ public class Arena {
 		
 		arena.members.remove(leaver);
 		
-		for(Entry<Connection, Runnable> e : arena.members.entrySet()) {
+		//TODO address case where owner is not online
+		Database.IMPL.addArenaEvent(leaver.username, HistoryEvent.LEAVE, "You left the arena.");
+		for(Entry<Connection, RunnableWithDatabaseException> e : arena.members.entrySet()) {
 			OutboundPackets.ARENA_OTHER_LEFT.send(e.getKey(), leaver.username, reason);
+			Database.IMPL.addArenaEvent(e.getKey().username, HistoryEvent.LEAVE, leaver.username + " left the arena.");
 		}
 		
 		leaver.arena = null;
 		
 		try {
-		if(arena.members.isEmpty() && Database.IMPL.closeEmptyArenas(leaver.username)) {
-			ARENAS.remove(arena.owner);
-			//TODO logging
-		}
+			if(arena.members.isEmpty() && Database.IMPL.closeEmptyArenas(leaver.username)) {
+				ARENAS.remove(arena.owner);
+			}
 		} catch(DatabaseException de) {
 			OutboundPackets.SERVER_ERROR.send(leaver, 5, de.getMessage());
 		}

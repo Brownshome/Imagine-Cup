@@ -126,7 +126,9 @@ FEATURES_SEND
 
 HISTORY_SEND
 	byte	eventType
-	byte[]	data
+	int		high order bits of the number of milliseconds since January 1, 1970, 00:00:00
+	int		low order bits of the number of milliseconds since January 1, 1970, 00:00:00
+	string	description (may be an empty string)
 
 LOGIN_OK
 	no data
