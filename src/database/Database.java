@@ -39,4 +39,7 @@ public interface Database {
 	public void	addArenaEvent(String username, HistoryEvent event, String data) throws DatabaseException;
 	public void setAvatarData(String username, byte[] binary) throws DatabaseException;
 	public List<Tripplet<HistoryEvent, Date, String>> getHistory(String username, int from, int to) throws DatabaseException;
+	public void setStatus(String username, String status) throws DatabaseException;
+	public String getStatus(String username) throws DatabaseException;
+	public void removeFriend(String userA, String userB) throws DatabaseException;
 }

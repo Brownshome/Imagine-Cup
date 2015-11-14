@@ -64,7 +64,8 @@ public class SQLEmbededDatabase implements Database {
 		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "
 		+ "DateJoined TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
 		+ "LastSeen TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-		+ "AvatarData VARCHAR (64) FOR BIT DATA DEFAULT X'" + DEFAULT_AVATAR_DATA + "' "
+		+ "AvatarData VARCHAR (64) FOR BIT DATA DEFAULT X'" + DEFAULT_AVATAR_DATA + "', "
+		+ "Status VARCHAR(255) DEFAULT ''"
 		+ ")",
 		
 		"CREATE TABLE ChatHistory "
@@ -141,7 +142,7 @@ public class SQLEmbededDatabase implements Database {
 		isFriend = connection.prepareStatement("SELECT UserTo, UserFrom FROM FriendRequests WHERE ((UserTo = ? AND UserFrom = ?) OR (UserFrom = ? AND UserTo = ?)) AND Accepted");
 		addFriendRequest = connection.prepareStatement("INSERT INTO FriendRequests (UserFrom, UserTo, Message) VALUES (?, ?, ?)");
 		acceptFriendRequest = connection.prepareStatement("UPDATE FriendRequests SET Accepted = TRUE, DateAccepted = CURRENT_TIMESTAMP WHERE UserFrom = ? AND UserTo = ?");
-		removeFriendRequest = connection.prepareStatement("DELETE FROM FriendRequests WHERE UserTo = ? AND UserFrom = ?");
+		removeFriendRequest = connection.prepareStatement("DELETE FROM FriendRequests WHERE UserTo = ? AND UserFrom = ? AND NOT Accepted");
 		getAvatarData = connection.prepareStatement("SELECT AvatarData FROM UserData WHERE Username = ?");
 		allowNonFriendsToJoin = connection.prepareStatement("SELECT NonFriendsJoin FROM UserPrefs WHERE Username = ?");
 		allowFriendsToJoin = connection.prepareStatement("SELECT FriendsJoin FROM UserPrefs WHERE Username = ?");
@@ -170,6 +171,9 @@ public class SQLEmbededDatabase implements Database {
 				"SELECT 'REQUEST_TO_ACCEPTED', DateAccepted, UserFrom || ': ' || Message FROM FRIENDREQUESTS WHERE UserTo = ? AND Accepted = TRUE " +
 				") AS tmp ORDER BY 2 DESC OFFSET ? ROWS FETCH FIRST ? ROWS ONLY"
 		);
+		setStatus = connection.prepareStatement("UPDATE UserData SET Status = ? WHERE Username = ?");
+		getStatus = connection.prepareStatement("SELECT Status FROM USERDATA WHERE Username = ?");
+		removeFriend = connection.prepareStatement("DELETE FROM FriendRequests WHERE ((UserTo = ? AND UserFrom = ?) OR (UserTo = ? AND UserFrom = ?)) AND Accepted");
 	}
 
 	PreparedStatement[] createUser;
@@ -309,7 +313,9 @@ public class SQLEmbededDatabase implements Database {
 		try {
 			removeFriendRequest.setString(1, requestee);
 			removeFriendRequest.setString(2, requester);
-			removeFriendRequest.executeUpdate();
+			
+			if(removeFriendRequest.executeUpdate() == 0)
+				throw new DatabaseException("Such a friend request does not exist.");
 		} catch(SQLException ex) {
 			throw new DatabaseException(ex);
 		}
@@ -556,6 +562,49 @@ public class SQLEmbededDatabase implements Database {
 			}
 			
 			return list;
+		} catch(SQLException sqle) {
+			throw new DatabaseException(sqle);
+		}
+	}
+
+	PreparedStatement setStatus;
+	@Override
+	public void setStatus(String username, String status) throws DatabaseException {
+		try {
+			setStatus.setString(1, status);
+			setStatus.setString(2, username);
+			if(setStatus.executeUpdate() == 0)
+				throw new DatabaseException(username + " is not a valid user.");
+		} catch(SQLException sqle) {
+			throw new DatabaseException(sqle);
+		}
+	}
+
+	PreparedStatement getStatus;
+	@Override
+	public String getStatus(String username) throws DatabaseException {
+		try {
+			getStatus.setString(1, username);
+			ResultSet result = getStatus.executeQuery();
+			if(!result.next())
+				throw new DatabaseException(username + " is not a valid user.");
+			
+			return result.getString(1);
+		} catch(SQLException sqle) {
+			throw new DatabaseException(sqle);
+		}
+	}
+
+	PreparedStatement removeFriend;
+	@Override
+	public void removeFriend(String userA, String userB) throws DatabaseException {
+		try {
+			removeFriend.setString(1, userA);
+			removeFriend.setString(2, userB);
+			removeFriend.setString(3, userB);
+			removeFriend.setString(4, userA);
+			if(removeFriend.executeUpdate() == 0)
+				throw new DatabaseException(userA + " and " + userB + " are not friends.");
 		} catch(SQLException sqle) {
 			throw new DatabaseException(sqle);
 		}

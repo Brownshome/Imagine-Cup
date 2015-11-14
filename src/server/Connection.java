@@ -161,8 +161,12 @@ public class Connection {
 		Database.IMPL.userLogin(username);
 		
 		//friends
-		for(String name : Database.IMPL.friends(username))
+		for(String name : Database.IMPL.friends(username)) {
 			OutboundPackets.FRIEND_SEND.send(this, name);
+			
+			OutboundPackets.STATUS_UPDATE.send(this, name);
+			OutboundPackets.STATUS_UPDATE.send(this, name);
+		}
 		
 		//preferences
 		sendPreferences();
@@ -172,6 +176,8 @@ public class Connection {
 		List<Doublet<String, String>> requests = Database.IMPL.incommingFriendRequests(username);
 		for(Doublet<String, String> request : requests)
 			OutboundPackets.FRIEND_REQUEST.send(this, request.a, request.b);
+		
+		OutboundPackets.STATUS_UPDATE.send(this, username, Database.IMPL.getStatus(username));
 	}
 	
 	public void login(String username, String password) throws DatabaseException {
@@ -230,8 +236,22 @@ public class Connection {
 			OutboundPackets.FRIEND_SEND.send(other, this.username);
 		
 		OutboundPackets.FRIEND_SEND.send(this, username);
+		
+		OutboundPackets.STATUS_UPDATE.send(this, username, Database.IMPL.getStatus(username));
+		OutboundPackets.STATUS_UPDATE.send(this, this.username, Database.IMPL.getStatus(this.username));
 	}
 
+	public void removeFriend(String otherGuy) throws DatabaseException {
+		if(!privilageCheck())
+			return;
+		
+		Database.IMPL.removeFriend(username, otherGuy);
+		
+		Connection c = CONNECTIONS.get(otherGuy);
+		if(c != null)
+			OutboundPackets.FRIEND_REMOVE.send(c, username);
+	}
+	
 	public void friendReject(String name) throws DatabaseException {
 		Connection other = CONNECTIONS.get(name);
 
@@ -347,6 +367,19 @@ public class Connection {
 			int high = (int) (time >> 32);
 			int low = (int) time;
 			OutboundPackets.HISTORY_SEND.send(this, (byte) t.a.ordinal(), high, low, t.c);
+		}
+	}
+
+	public void updateStatus(String status) throws DatabaseException {
+		if(!privilageCheck())
+			return;
+		
+		Database.IMPL.setStatus(username, status);
+		
+		for(String friend : Database.IMPL.friends(username)) {
+			Connection c = CONNECTIONS.get(friend);
+			if(c != null)
+				OutboundPackets.STATUS_UPDATE.send(c, username, status);
 		}
 	}
 }

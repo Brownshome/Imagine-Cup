@@ -16,14 +16,13 @@ import database.DatabaseException;
 public enum InboundPackets {
 	HISTORY_GET((c, o) -> c.sendHistory((int) o[0], (int) o[1]), INTEGER, INTEGER),
 
-	FEATURES_GET(null),
-
 	TEXT_SEND((c, o) -> c.sendText((byte) o[0], (String) o[1], (String) o[2]), BYTE, STRING, STRING),
 
 	FRIEND_REQUEST((c, o) -> c.friendRequest((String) o[0], (String) o[1]), STRING, STRING),
 	FRIEND_ACCEPT((c, o) -> c.friendAccept((String) o[0]), STRING),
 	FRIEND_REJECT((c, o) -> c.friendReject((String) o[0]), STRING),
-
+	FRIEND_REMOVE((c, o) -> c.removeFriend((String) o[0]), STRING),
+	
 	ARENA_CLOSE((c, o) -> Arena.closeArena((String) o[0], c), STRING),
 	ARENA_CREATE((c, o) -> new Arena(c)),
 	ARENA_INVITE((c, o) -> c.inviteToArena((String) o[0], (String) o[1]), STRING, STRING),
@@ -33,9 +32,10 @@ public enum InboundPackets {
 	PREFERENCES_SET((c, o) -> c.setPreferences((int) o[0]), INTEGER),
 	PREFERENCES_GET((c, o) -> c.sendPreferences()),
 
-	STATUS_UPDATE(null, STRING),
+	STATUS_UPDATE((c, o) -> c.updateStatus((String) o[0]), STRING),
 
 	NEWS_FEED_ADD(null, BINARY),
+	NEWS_FEED_GET(null, INTEGER, INTEGER),
 
 	AVATAR_SEND((c, o) -> c.setAvatar((byte[]) o[0]), BINARY),
 

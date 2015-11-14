@@ -121,9 +121,6 @@ STATUS_UPDATE
 	string 	username
 	string 	status
 
-FEATURES_SEND
-	int	features (a bit mask)
-
 HISTORY_SEND
 	byte	eventType
 	int		high order bits of the number of milliseconds since January 1, 1970, 00:00:00
@@ -142,9 +139,6 @@ Client To Server Packets
 HISTORY_GET
 	int	length
 
-FEATURES_GET
-	no data
-
 TEXT_SEND
 	byte	type
 	string	text
@@ -158,6 +152,9 @@ FRIEND_ACCEPT
 	string	username
 
 FRIEND_REJECT
+	string	username
+	
+FRIEND_REMOVE
 	string	username
 
 ARENA_CLOSE
@@ -186,8 +183,12 @@ STATUS_UPDATE
 	string	status
 
 NEWS_FEED_ADD
-	int	type
+	int		type
 	byte[]	data
+
+NEWS_FEED_GET
+	int		to
+	int		from
 
 AVATAR_SEND
 	byte[] data
