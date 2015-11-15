@@ -48,36 +48,6 @@ TEXT_SEND
 		1: ArenaMessage
 		2: NonArenaMessage
 
-FILE_UPLOADED
-	byte 	fileType
-	string	fileName
-
-	fileTypes:
-		0: PNG
-		1: JPEG
-		2: AVI
-		3: GENERAL_FILE
-
-
-FILE_UPLOAD_COMPLETE
-	string name
-
-FILE_START_TRANSFER
-	string 	name
-	byte	connectionType
-	byte[]	connectionData (may be empty)
-
-	connectionTypes:
-		0: stream from server (in this connection.
-		   no data in connectionData)
-		1: stream from server (in new TCP connection,
-		   connectionData contains the port)
-		2: URL stream (connectionData contains the URL)
-
-FILE_TRANSFER
-	string 	name
-	data[]	file
-
 ANNOTATE_TEXT
 	string	username
 	float	xPos
@@ -198,39 +168,6 @@ ANNOTATE_TEXT
 	float 	yPos
 	float 	zPos
 	string	text
-
-UPLOAD_FILE
-	byte 	fileType
-	byte	connectionType
-	string	fileName
-	string	URL (may be empty)
-	
-	fileTypes:
-		0: PNG
-		1: JPEG
-		2: AVI
-		3: GENERAL_FILE
-
-	connectionTypes:
-		0: stream from client
-		1: stream from client in sepperate connection
-		2: URL stream (connectionData contains the URL)
-
-FILE_UPLOAD
-	byte	fileType
-	byte	connectionType
-	int	size
-	string	name
-	string	URL
-	
-FILE_TRANSFER
-	string	name
-	byte[]	data
-		0: stream from server (in this connection.
-		   no data in connectionData)
-		1: stream from server (in new TCP connection,
-		   connectionData contains the port)
-		2: URL stream (connectionData contains the URL)
 
 LOGIN
 	string	username

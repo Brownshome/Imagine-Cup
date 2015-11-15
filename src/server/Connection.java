@@ -266,27 +266,6 @@ public class Connection {
 		Database.IMPL.removeFriendRequest(name, username);
 	}
 
-	public void handleFileUpload(byte fileType, byte connectionType, int size, String name, String URL) {
-		switch(connectionType) {
-			case 0: //stream from client
-				inConnectionTransfer(fileType, size, name, URL);
-				break;
-			case 1: //stream from client in sepperate connection
-				
-				break;
-			case 2: //URL stream
-				break;
-		}
-	}
-
-	public void inConnectionTransfer(byte fileType, int size, String name, String URL) {
-		
-	}
-
-	public void handleFileDataPacket(String string, byte[] bs) {
-		
-	}
-
 	public void inviteToArena(String other, String message) throws DatabaseException {
 		if(!privilageCheck())
 			return;

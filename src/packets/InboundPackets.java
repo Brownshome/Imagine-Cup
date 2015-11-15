@@ -41,9 +41,6 @@ public enum InboundPackets {
 
 	ANNOTATE_TEXT((c, o) -> c.annotateText((float) o[0], (float) o[1], (float) o[2], (String) o[3]), FLOAT, FLOAT, FLOAT, STRING),
 	
-	FILE_UPLOAD((c, o) -> c.handleFileUpload((byte) o[0], (byte) o[1], (int) o[2], (String) o[3], (String) o[4]), BYTE, BYTE, INTEGER, STRING, STRING),
-	FILE_TRANFER((c, o) -> c.handleFileDataPacket((String) o[0], (byte[]) o[1]), STRING, BINARY),
-	
 	LOGIN((c, o) -> c.login((String) o[0], (String) o[1]), STRING, STRING),
 	LOGIN_REGISTER((c, o) -> c.register((String) o[0], (String) o[1]), STRING, STRING);
 
