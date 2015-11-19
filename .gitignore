@@ -4,6 +4,9 @@ build/
 bin/
 database/
 
+# Why is this neccessary :(
+!src/database/
+
 # Ignore Gradle GUI config
 gradle-app.setting
 
