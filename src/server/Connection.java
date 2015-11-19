@@ -6,7 +6,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
+
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -16,17 +21,23 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import packets.DataType;
 import packets.InboundPackets;
 import packets.OutboundPackets;
 import packets.PacketException;
+
 import security.Login;
+
 import util.Doublet;
 import util.RunnableWithDatabaseException;
 import util.Tripplet;
+
 import arena.Arena;
+
 import database.Database;
 import database.DatabaseException;
 import database.HistoryEvent;
+
 import framing.COBS;
 import framing.FramingAlgorithm;
 
@@ -45,7 +56,11 @@ public class Connection {
 		POOL.submit(new Connection(socket)::listenJob);
 	}
 
-	public Socket socket;
+	public Socket TCPSocket;
+	
+	public DatagramSocket UDPSocket;
+	public int UDPPort;
+	
 	public String username;
 
 	public Arena arena;
@@ -56,7 +71,7 @@ public class Connection {
 	Set<RunnableWithDatabaseException> closeList = new HashSet<>();
 	
 	Connection(Socket socket) {
-		this.socket = socket;
+		this.TCPSocket = socket;
 
 		try {
 			in = socket.getInputStream();
@@ -118,7 +133,7 @@ public class Connection {
 	synchronized void closeConnection() {
 		try {
 			in.close();
-			socket.close();
+			TCPSocket.close();
 			out.close();
 		} catch (IOException e) {}
 
@@ -359,6 +374,42 @@ public class Connection {
 			Connection c = CONNECTIONS.get(friend);
 			if(c != null)
 				OutboundPackets.STATUS_UPDATE.send(c, username, status);
+		}
+	}
+
+	public static void passDatagram(DatagramPacket packet) {
+		ByteArrayInputStream data = new ByteArrayInputStream(packet.getData(), packet.getOffset(), packet.getLength());
+		
+		String username = null;
+		try {
+			username = (String) DataType.STRING.read(data); //TODO lower data use, options are using IP or string hash
+		} catch(RuntimeException re) {
+			System.out.println("Malformed string in UDP packet.");
+			return;
+		}
+			
+		Connection connection = CONNECTIONS.get(username);
+		if(connection  == null) {
+			System.out.println("The username " + username + " sent a UDP packet and is not currently connected.");
+			return;
+		}
+
+		if(connection.arena == null)  {
+			OutboundPackets.SERVER_ERROR.send(connection, 3, "You are not part of an arena.");
+			return;
+		}
+
+		for(Connection c : connection.arena.members.keySet()) {
+			if(c == connection || c.UDPSocket == null)
+				continue;
+
+			InetAddress IP = c.TCPSocket.getInetAddress();
+
+			try {
+				c.UDPSocket.send(new DatagramPacket(packet.getData(), packet.getOffset(), packet.getLength(), IP, c.UDPPort));
+			} catch (IOException e) {
+				System.out.println("Failed to send packet.");
+			}
 		}
 	}
 }
