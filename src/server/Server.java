@@ -22,10 +22,10 @@ public class Server {
 				while(true) {
 					DatagramPacket incomming = new DatagramPacket(buffer, MAX_PACKET_SIZE);
 					UDPSocket.receive(incomming);
-					Connection.passDatagram(incomming);
+					Connection.passDatagram(incomming, UDPSocket);
 				}
 			} catch (IOException e) {
-				System.out.println("Could not create listen socket at port " + LISTEN_PORT_TCP + " : " + e.getMessage());
+				System.out.println("Could not create listen socket at port " + LISTEN_PORT_UDP + " : " + e.getMessage());
 			}
 		}, "UDPListener");
 		

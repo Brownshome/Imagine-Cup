@@ -6,12 +6,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
 import java.net.DatagramPacket;
 import java.net.DatagramSocket;
 import java.net.InetAddress;
 import java.net.Socket;
-
 import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -25,19 +23,14 @@ import packets.DataType;
 import packets.InboundPackets;
 import packets.OutboundPackets;
 import packets.PacketException;
-
 import security.Login;
-
 import util.Doublet;
 import util.RunnableWithDatabaseException;
 import util.Tripplet;
-
 import arena.Arena;
-
 import database.Database;
 import database.DatabaseException;
 import database.HistoryEvent;
-
 import framing.COBS;
 import framing.FramingAlgorithm;
 
@@ -50,15 +43,13 @@ public class Connection {
 
 	/** The thread pool that connections are formed with */
 	static final ExecutorService POOL = Executors.newCachedThreadPool(); //I know this is vunlnerable to DoS but I'll worry about that later
-
+	
 	public static void createNewConnection(Socket socket) {
 		System.out.println("Accepted connection from " + socket.getInetAddress());
 		POOL.submit(new Connection(socket)::listenJob);
 	}
 
 	public Socket TCPSocket;
-	
-	public DatagramSocket UDPSocket;
 	public int UDPPort;
 	
 	public String username;
@@ -377,7 +368,7 @@ public class Connection {
 		}
 	}
 
-	public static void passDatagram(DatagramPacket packet) {
+	public static void passDatagram(DatagramPacket packet, DatagramSocket UDPSocket) {
 		ByteArrayInputStream data = new ByteArrayInputStream(packet.getData(), packet.getOffset(), packet.getLength());
 		
 		String username = null;
@@ -387,26 +378,33 @@ public class Connection {
 			System.out.println("Malformed string in UDP packet.");
 			return;
 		}
-			
+		
 		Connection connection = CONNECTIONS.get(username);
 		if(connection  == null) {
 			System.out.println("The username " + username + " sent a UDP packet and is not currently connected.");
 			return;
 		}
 
+		if(!connection.TCPSocket.getInetAddress().equals(packet.getAddress())) {
+			System.out.println("Mismatching IP addresses " + connection.TCPSocket.getInetAddress() + " vs " + packet.getAddress());
+		}
+		
+		connection.UDPPort = packet.getPort();
+		System.out.println("UDP received from " + username);
+		
 		if(connection.arena == null)  {
 			OutboundPackets.SERVER_ERROR.send(connection, 3, "You are not part of an arena.");
 			return;
 		}
 
 		for(Connection c : connection.arena.members.keySet()) {
-			if(c == connection || c.UDPSocket == null)
+			if(c == connection || c.UDPPort == -1)
 				continue;
 
 			InetAddress IP = c.TCPSocket.getInetAddress();
 
 			try {
-				c.UDPSocket.send(new DatagramPacket(packet.getData(), packet.getOffset(), packet.getLength(), IP, c.UDPPort));
+				UDPSocket.send(new DatagramPacket(packet.getData(), packet.getOffset(), packet.getLength(), IP, c.UDPPort));
 			} catch (IOException e) {
 				System.out.println("Failed to send packet.");
 			}
