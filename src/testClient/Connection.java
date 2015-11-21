@@ -6,6 +6,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.net.DatagramSocket;
+import java.net.DatagramPacket;
 import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.Queue;
@@ -19,9 +21,26 @@ public class Connection {
 	static Connection connection;
 	static final FramingAlgorithm FRAMER = new COBS();
 
-	public static void createNewConnection(Socket socket) {
+	public static void createNewConnection(Socket socket, DatagramSocket UDPSocket) {
 		connection = new Connection(socket);
-		new Thread(connection::listenJob).start();
+		new Thread(connection::listenJob, "TCP Listener").start();
+
+		Thread UDPThread = new Thread(() -> {
+			try {
+				while(true) {
+					byte[] d = new byte[1024];
+					DatagramPacket p = new DatagramPacket(d, d.length);
+					UDPSocket.receive(p);
+					Client.printPacket("UDP", new Object[] {Arrays.copyOf(p.getData(), p.getLength())});
+				}
+			} catch(IOException e) {
+				System.out.println("Could not connect to socket");
+				e.printStackTrace();
+			}
+		}, "UDP Listener");
+
+		UDPThread.setDaemon(true);
+		UDPThread.start();
 	}
 
 	public Socket socket;

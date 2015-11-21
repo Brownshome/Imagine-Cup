@@ -3,6 +3,9 @@ package testClient;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Arrays;
 
@@ -24,8 +27,8 @@ public class Client {
 		String ip = ipPort[0];
 		int port = Integer.decode(ipPort[1]);
 
-		try ( Socket socket = new Socket(ip, port) ) {
-			Connection.createNewConnection(socket);
+		try ( Socket TCPSocket = new Socket(ip, port); DatagramSocket UDPSocket = new DatagramSocket() ) {
+			Connection.createNewConnection(TCPSocket, UDPSocket);
 
 			while(true) {
 				System.out.println("Please type a packet id followed by the data to send. RAW is the packet id for raw "
@@ -36,7 +39,10 @@ public class Client {
 				if(data[0].equals("EXIT"))
 					System.exit(0);
 
-				if(data[0].equals("RAW")) {
+				if(data[0].equals("UDP")) {
+					byte[] c = DatatypeConverter.parseHexBinary(data[1]);
+					UDPSocket.send(new DatagramPacket(c, c.length, InetAddress.getByName(ip), port + 1));
+				} else if(data[0].equals("RAW")) {
 					Connection.connection.send(DatatypeConverter.parseHexBinary(data[1]));
 				} else if(data[0].equals("ENCODED")) {
 					Connection.connection.sendNonEncoded(DatatypeConverter.parseHexBinary(data[1]));
@@ -93,7 +99,10 @@ public class Client {
 			if(i != 0)
 				System.out.print(", ");
 
-			System.out.print(objects[i].toString());
+			if(objects[i] instanceof byte[])
+				System.out.print(DatatypeConverter.printHexBinary((byte[]) objects[i]));
+			else
+				System.out.print(objects[i].toString());
 		}
 
 		System.out.println(" ]");

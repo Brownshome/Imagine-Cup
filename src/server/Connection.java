@@ -6,6 +6,9 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.net.DatagramPacket;
+import java.net.DatagramSocket;
+import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Date;
 import java.util.HashMap;
@@ -16,6 +19,7 @@ import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
+import packets.DataType;
 import packets.InboundPackets;
 import packets.OutboundPackets;
 import packets.PacketException;
@@ -39,13 +43,15 @@ public class Connection {
 
 	/** The thread pool that connections are formed with */
 	static final ExecutorService POOL = Executors.newCachedThreadPool(); //I know this is vunlnerable to DoS but I'll worry about that later
-
+	
 	public static void createNewConnection(Socket socket) {
 		System.out.println("Accepted connection from " + socket.getInetAddress());
 		POOL.submit(new Connection(socket)::listenJob);
 	}
 
-	public Socket socket;
+	public Socket TCPSocket;
+	public int UDPPort;
+	
 	public String username;
 
 	public Arena arena;
@@ -56,7 +62,7 @@ public class Connection {
 	Set<RunnableWithDatabaseException> closeList = new HashSet<>();
 	
 	Connection(Socket socket) {
-		this.socket = socket;
+		this.TCPSocket = socket;
 
 		try {
 			in = socket.getInputStream();
@@ -118,7 +124,7 @@ public class Connection {
 	synchronized void closeConnection() {
 		try {
 			in.close();
-			socket.close();
+			TCPSocket.close();
 			out.close();
 		} catch (IOException e) {}
 
@@ -359,6 +365,49 @@ public class Connection {
 			Connection c = CONNECTIONS.get(friend);
 			if(c != null)
 				OutboundPackets.STATUS_UPDATE.send(c, username, status);
+		}
+	}
+
+	public static void passDatagram(DatagramPacket packet, DatagramSocket UDPSocket) {
+		ByteArrayInputStream data = new ByteArrayInputStream(packet.getData(), packet.getOffset(), packet.getLength());
+		
+		String username = null;
+		try {
+			username = (String) DataType.STRING.read(data); //TODO lower data use, options are using IP or string hash
+		} catch(RuntimeException re) {
+			System.out.println("Malformed string in UDP packet.");
+			return;
+		}
+		
+		Connection connection = CONNECTIONS.get(username);
+		if(connection  == null) {
+			System.out.println("The username " + username + " sent a UDP packet and is not currently connected.");
+			return;
+		}
+
+		if(!connection.TCPSocket.getInetAddress().equals(packet.getAddress())) {
+			System.out.println("Mismatching IP addresses " + connection.TCPSocket.getInetAddress() + " vs " + packet.getAddress());
+		}
+		
+		connection.UDPPort = packet.getPort();
+		System.out.println("UDP received from " + username);
+		
+		if(connection.arena == null)  {
+			OutboundPackets.SERVER_ERROR.send(connection, 3, "You are not part of an arena.");
+			return;
+		}
+
+		for(Connection c : connection.arena.members.keySet()) {
+			if(c == connection || c.UDPPort == -1)
+				continue;
+
+			InetAddress IP = c.TCPSocket.getInetAddress();
+
+			try {
+				UDPSocket.send(new DatagramPacket(packet.getData(), packet.getOffset(), packet.getLength(), IP, c.UDPPort));
+			} catch (IOException e) {
+				System.out.println("Failed to send packet.");
+			}
 		}
 	}
 }
