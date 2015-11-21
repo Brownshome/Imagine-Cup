@@ -1,14 +1,13 @@
 package database;
 
 import java.sql.Connection;
-import java.util.Date;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
 import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 
 import util.Doublet;
@@ -17,112 +16,22 @@ import util.Tripplet;
 public class SQLEmbededDatabase implements Database {
 	Connection connection;
 
-	static final String DATABASE = "database";
-	static final String ERR_PRIMARY_KEY = "23505";
-	static final String ERR_REFERENCE = "23503";
-	static final String DATABASE_NOT_FOUND = "XJ004";
-	static final String DEFAULT_AVATAR_DATA = "";
+	static final String DATABASE = "sqlbackend";
+	static final String ERR_PRIMARY_KEY = "23000";
+	static final String ERR_REFERENCE = "23000";
+	static final String USERNAME = "root";
+	static final String PASSWORD = null; //password goes here;
 	
-	static String[] tableNames = {
-		"UserPrefs",
-		"LoginData",
-		"FriendRequests",
-		"UserData",
-		"ChatHistory",
-		"ArenaHistory"
-	};
-
-	static String[] tableCreateCommand = {
-		"CREATE TABLE LoginData "
-		+ "("
-		+ "Username VARCHAR(255) NOT NULL PRIMARY KEY, "
-		+ "Hash VARCHAR(255) NOT NULL"
-		+ ")",
-
-		"CREATE TABLE UserPrefs "
-		+ "("
-		+ "Username VARCHAR(255) NOT NULL PRIMARY KEY REFERENCES LoginData, "
-		+ "NonFriendsJoin BOOLEAN DEFAULT false, "
-		+ "FriendsJoin BOOLEAN DEFAULT false, "
-		+ "NonFriendsInvite BOOLEAN DEFAULT false, "
-		+ "FriendsInvite BOOLEAN DEFAULT false, "
-		+ "ShareInfo BOOLEAN DEFAULT false "
-		+ ")",
-
-		"CREATE TABLE FriendRequests "
-		+ "("
-		+ "UserFrom VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "UserTo VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "Message VARCHAR(255), "
-		+ "DateMade TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-		+ "DateAccepted TIMESTAMP, "
-		+ "Accepted BOOLEAN DEFAULT FALSE "
-		+ ")",
-		
-		"CREATE TABLE UserData "
-		+ "("
-		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "DateJoined TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-		+ "LastSeen TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
-		+ "AvatarData VARCHAR (64) FOR BIT DATA DEFAULT X'" + DEFAULT_AVATAR_DATA + "', "
-		+ "Status VARCHAR(255) DEFAULT ''"
-		+ ")",
-		
-		"CREATE TABLE ChatHistory "
-		+ "("
-		+ "UserFrom VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "UserTo VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "Text VARCHAR(512), "
-		+ "DateMade TIMESTAMP DEFAULT CURRENT_TIMESTAMP "
-		+ ")",
-		
-		"CREATE TABLE ArenaHistory "
-		+ "("
-		+ "Username VARCHAR(255) NOT NULL REFERENCES LoginData, "
-		+ "Event VARCHAR(64) CHECK (Event IN ( " + getEnumList() + " )), "
-		+ "Data VARCHAR(255), "
-		+ "DateMade TIMESTAMP DEFAULT CURRENT_TIMESTAMP "
-		+ ")"
-	};
-
 	void connect(String databaseName) {
-		String URL = "jdbc:derby:" + databaseName;
+		String URL = "jdbc:mysql://localhost/" + databaseName;
 
 		try {
-			try {
-				connection = DriverManager.getConnection(URL);
-			} catch(SQLException sql) {
-				if(!sql.getSQLState().equals(DATABASE_NOT_FOUND))
-					throw sql;
-					
-				System.out.println("Database not found, creating...");
-				connection = DriverManager.getConnection(URL + ";create=true");
-				createTables();
-			}
-			
+			connection = DriverManager.getConnection(URL, USERNAME, PASSWORD);
 			createPreparedStatements();
 		} catch (SQLException sql) {
 			System.out.println("Database connection failed : " + sql.getMessage());
 			System.exit(0);
 		}
-	}
-
-	private static String getEnumList() {
-		String string = "'" + HistoryEvent.values()[0] + "'";
-		for(int i = 1; i < HistoryEvent.values().length; i++) {
-			string += ", '" + HistoryEvent.values()[i] + "'";
-		}
-		
-		return string;
-	}
-
-	void createTables() throws SQLException {
-		Statement statement = connection.createStatement();
-
-		for(int i = 0; i < tableNames.length; i++)
-			statement.addBatch(tableCreateCommand[i]);
-
-		statement.executeBatch();
 	}
 
 	public SQLEmbededDatabase() {
@@ -132,8 +41,8 @@ public class SQLEmbededDatabase implements Database {
 	void createPreparedStatements() throws SQLException {
 		createUser = new PreparedStatement[] {
 				connection.prepareStatement("INSERT INTO LoginData (Username, Hash) VALUES (?, ?)"),
-				connection.prepareStatement("INSERT INTO UserPrefs (Username) VALUES ?"),
-				connection.prepareStatement("INSERT INTO UserData (Username) VALUES ?")
+				connection.prepareStatement("INSERT INTO UserPrefs (Username) VALUES (?)"),
+				connection.prepareStatement("INSERT INTO UserData (Username) VALUES (?)")
 		};
 		updateLastSeen = connection.prepareStatement("UPDATE UserData SET LastSeen = CURRENT_TIMESTAMP WHERE Username = ?");
 		incommingFriendRequests = connection.prepareStatement("SELECT UserFrom, Message FROM FriendRequests WHERE UserTo = ? AND NOT Accepted");
@@ -169,7 +78,7 @@ public class SQLEmbededDatabase implements Database {
 				"SELECT 'REQUEST_FROM_MADE', DateMade, UserFrom || ': ' || Message FROM FRIENDREQUESTS WHERE UserTo = ? " +
 				"UNION " +
 				"SELECT 'REQUEST_TO_ACCEPTED', DateAccepted, UserFrom || ': ' || Message FROM FRIENDREQUESTS WHERE UserTo = ? AND Accepted = TRUE " +
-				") AS tmp ORDER BY 2 DESC OFFSET ? ROWS FETCH FIRST ? ROWS ONLY"
+				") AS tmp ORDER BY 2 DESC LIMIT ? OFFSET ?"
 		);
 		setStatus = connection.prepareStatement("UPDATE UserData SET Status = ? WHERE Username = ?");
 		getStatus = connection.prepareStatement("SELECT Status FROM USERDATA WHERE Username = ?");
@@ -547,8 +456,8 @@ public class SQLEmbededDatabase implements Database {
 			getHistory.setString(6, username);
 			getHistory.setString(7, username);
 
-			getHistory.setInt(8, from);
-			getHistory.setInt(9, to - from);
+			getHistory.setInt(8, to - from);
+			getHistory.setInt(9, from);
 			
 			ResultSet result = getHistory.executeQuery();
 			

@@ -7,7 +7,7 @@ repositories {
 
 dependencies {
 	compile 'de.svenkubiak:jBCrypt:0.4'
-	compile 'org.apache.derby:derby:10.11.1.1'
+	compile 'mysql:mysql-connector-java:5.1.37'
 }
 
 sourceSets {
